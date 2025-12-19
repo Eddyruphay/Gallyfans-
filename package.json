@@ -14,7 +14,7 @@
   "type": "module",
   "dependencies": {
     "@hapi/boom": "^10.0.1",
-    "@prisma/client": "^7.0.0",
+    "@prisma/client": "^6.19.0",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "async-retry": "^1.3.3",
     "axios": "^1.13.2",

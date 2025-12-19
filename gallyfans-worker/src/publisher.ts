@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { config } from './config.js';
-import { logger } from './logger.js';
-import { WhatsAppClient } from './whatsapp/client.js';
+import logger from './logger.js';
+import connectToWhatsApp from './whatsapp/client.js';
 import { Redis } from 'ioredis';
 
 const prisma = new PrismaClient();
@@ -72,13 +72,16 @@ async function getNextJob() {
 
 async function updateJobStatus(jobId: number, status: 'published' | 'failed', errorLog?: string) {
   try {
+    const data: any = {
+      status,
+      publishedAt: status === 'published' ? new Date() : null,
+    };
+    if (errorLog) {
+      data.errorLog = errorLog;
+    }
     await prisma.publishingQueue.update({
       where: { id: jobId },
-      data: {
-        status,
-        errorLog,
-        publishedAt: status === 'published' ? new Date() : null,
-      },
+      data,
     });
     logger.info({ jobId, status }, '[DB] Job status updated successfully.');
   } catch (error) {
@@ -86,7 +89,7 @@ async function updateJobStatus(jobId: number, status: 'published' | 'failed', er
   }
 }
 
-export async function runPublicationCycle(whatsappClient: WhatsAppClient) {
+export async function runPublicationCycle(whatsappClient: Awaited<ReturnType<typeof connectToWhatsApp>>) {
   const lockValue = Date.now().toString();
   const lock = await redis.set(LOCK_KEY, lockValue, 'EX', LOCK_TIMEOUT, 'NX');
 
@@ -100,7 +103,7 @@ export async function runPublicationCycle(whatsappClient: WhatsAppClient) {
   let jobId: number | null = null;
 
   try {
-    if (!whatsappClient.isConnected()) {
+    if (!whatsappClient) {
       logger.warn('[PUBLISHER] WhatsApp client is not connected. Skipping cycle.');
       return;
     }
@@ -124,12 +127,15 @@ export async function runPublicationCycle(whatsappClient: WhatsAppClient) {
 
     for (let i = 0; i < images.length; i++) {
       const image = images[i];
+      if (!image) {
+        continue;
+      }
       const isFirstImage = i === 0;
       
       // Use the gallery title for the first image, and a space for subsequent ones to avoid repetition
       const caption = isFirstImage ? gallery.title : ' ';
       
-      await whatsappClient.sendMessage(config.targetChannelId, caption, image.image_url);
+      await whatsappClient.sendMessage(config.targetChannelId, { image: { url: image.imageUrl }, caption });
 
       // Add a small delay between messages to avoid being flagged as spam
       if (i < images.length - 1) { await new Promise(resolve => setTimeout(resolve, 1500)); }
