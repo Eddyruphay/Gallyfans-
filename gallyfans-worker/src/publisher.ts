@@ -20,11 +20,11 @@ async function getNextJob() {
     const job = await prisma.$transaction(async (tx) => {
       // Find the next job, lock it, and update its status
       const nextJob = await tx.$queryRaw<any[]>`
-        UPDATE "PublishingQueue"
+        UPDATE "publishing_queue"
         SET status = 'processing'
         WHERE id = (
           SELECT id
-          FROM "PublishingQueue"
+          FROM "publishing_queue"
           WHERE status = 'queued'
           ORDER BY "scheduledFor" ASC
           LIMIT 1
