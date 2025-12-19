@@ -1,0 +1,170 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "linux-arm64-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------------------------------------
+// --- CORE DATA MODELS
+// -------------------------------------------------
+
+model Model {
+  id               Int      @id @default(autoincrement())
+  name             String   @unique
+  slug             String   @unique
+  status           String   @default("active")
+  sourceSite       String?
+  sourceExternalId String?
+  bio              String?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  galleries Gallery[]
+
+  @@map("models")
+}
+
+model Gallery {
+  id                 Int      @id @default(autoincrement())
+  modelId            Int
+  originalId         String?
+  title              String
+  channel            String?
+  originalRating     Int?
+  originalViews      Int?
+  gallyfansVotesUp   Int      @default(0) @map("gallyfans_votes_up")
+  gallyfansVotesDown Int      @default(0) @map("gallyfans_votes_down")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  model          Model             @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  images         Image[]
+  tags           GalleryTag[]
+  categories     GalleryCategory[]
+  editionEntries EditionGallery[]
+
+  @@unique([modelId, originalId])
+  @@map("galleries")
+}
+
+model Image {
+  id            Int      @id @default(autoincrement())
+  galleryId     Int
+  imageUrl      String   @unique @map("image_url")
+  position      Int      @default(0)
+  imageHash     String?  @map("image_hash")
+  cloudflareUrl String?  @map("cloudflare_url")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  gallery Gallery @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+
+  @@map("images")
+}
+
+// -------------------------------------------------
+// --- METADATA & JOIN TABLES
+// -------------------------------------------------
+
+model Tag {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  galleries GalleryTag[]
+
+  @@map("tags")
+}
+
+model Category {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  galleries GalleryCategory[]
+
+  @@map("categories")
+}
+
+model GalleryTag {
+  galleryId Int
+  tagId     Int
+
+  gallery Gallery @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([galleryId, tagId])
+  @@map("gallery_tags")
+}
+
+model GalleryCategory {
+  galleryId  Int
+  categoryId Int
+
+  gallery  Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([galleryId, categoryId])
+  @@map("gallery_categories")
+}
+
+// -------------------------------------------------
+// --- CURATION & PUBLISHING SYSTEM
+// -------------------------------------------------
+
+model Edition {
+  id          Int      @id @default(autoincrement())
+  name        String
+  slug        String   @unique
+  description String?
+  status      String   @default("draft") // 'draft', 'ready_to_publish', 'published', 'archived'
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  galleries EditionGallery[]
+
+  @@map("editions")
+}
+
+model EditionGallery {
+  editionId Int
+  galleryId Int
+  position  Int @default(0)
+
+  edition Edition @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  gallery Gallery @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+
+  @@id([editionId, galleryId])
+  @@map("edition_galleries")
+}
+
+model PublishingQueue {
+  id            Int       @id @default(autoincrement())
+  editionId     Int
+  galleryId     Int
+  targetChannel String    @map("target_channel") // 'whatsapp_gallyfans', 'telegram_gallyx'
+  status        String    @default("queued") // 'queued', 'processing', 'published', 'failed'
+  scheduledFor  DateTime  @default(now()) @map("scheduled_for")
+  publishedAt   DateTime? @map("published_at")
+  errorLog      String?   @map("error_log")
+
+  // Nao criamos relations aqui de propósito para desacoplar a fila.
+  // Se uma edição ou galeria for deletada, o registro na fila permanece
+  // para fins de log histórico.
+
+  @@map("publishing_queue")
+}
+
+// -------------------------------------------------
+// --- SYSTEM & SERVICE SESSIONS
+// -------------------------------------------------
+
+model ServiceSession {
+  id          String   @id
+  sessionJson String   @map("session_json") @db.Text
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("service_sessions")
+}
