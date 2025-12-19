@@ -162,3 +162,7 @@ image_links.txt
 model_page.html
 publisher-worker/node_modules/
 *.mjs
+
+# Ignored project folders
+api/
+_archived_/
