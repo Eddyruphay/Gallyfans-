@@ -26,7 +26,7 @@ async function getNextJob() {
           SELECT id
           FROM "publishing_queue"
           WHERE status = 'queued'
-          ORDER BY "scheduledFor" ASC
+          ORDER BY "scheduled_for" ASC
           LIMIT 1
           FOR UPDATE SKIP LOCKED
         )
