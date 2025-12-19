@@ -6,10 +6,6 @@ const {
   TARGET_CHANNEL_ID,
   REDIS_URL,
   WA_PHONE_NUMBER,
-  REDIS_HOST,
-  REDIS_PORT,
-  REDIS_USERNAME,
-  REDIS_PASSWORD,
   PORT,
   PUBLICATION_INTERVAL_MINUTES
 } = process.env;
@@ -19,10 +15,7 @@ const requiredEnvVars = {
   DATABASE_URL,
   TARGET_CHANNEL_ID,
   WA_PHONE_NUMBER,
-  REDIS_HOST,
-  REDIS_PORT,
-  REDIS_USERNAME,
-  REDIS_PASSWORD,
+  REDIS_URL,
 };
 
 const missingEnvVars = Object.entries(requiredEnvVars)
@@ -41,16 +34,6 @@ export const config = {
   port: PORT ? parseInt(PORT, 10) : 3000,
   publicationIntervalMs: (parseInt(PUBLICATION_INTERVAL_MINUTES || '15', 10)) * 60 * 1000,
   redis: {
-    url: REDIS_URL, // For simple Redis connections if needed
-    options: { // For Baileys Redis Auth and other detailed connections
-      host: REDIS_HOST!,
-      port: parseInt(REDIS_PORT!, 10),
-      username: REDIS_USERNAME!,
-      password: REDIS_PASSWORD!,
-      tls: {
-        rejectUnauthorized: false, // As seen in the original gateway
-      },
-      maxRetriesPerRequest: 20,
-    }
+    url: REDIS_URL!,
   }
 };
