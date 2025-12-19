@@ -41,7 +41,7 @@ async function getNextJob() {
 
       // Fetch the associated gallery and images
       const gallery = await tx.gallery.findUnique({
-        where: { id: jobData.galleryId },
+        where: { id: jobData.gallery_id },
         include: { images: { orderBy: { position: 'asc' } } },
       });
 
