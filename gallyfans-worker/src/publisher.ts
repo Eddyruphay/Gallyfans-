@@ -5,7 +5,7 @@ import connectToWhatsApp from './whatsapp/client.js';
 import { Redis } from 'ioredis';
 
 const prisma = new PrismaClient();
-const redis = new Redis(config.redis.url || '');
+const redis = new Redis(config.redis.options);
 
 const LOCK_KEY = 'gallyfans-publisher-lock';
 const LOCK_TIMEOUT = 300; // 5 minutes
