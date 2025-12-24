@@ -1,5 +1,5 @@
 
-import { db as dbPromise } from './db.js'; // Assuming you have a db connection setup
+import { db as dbPromise } from './db';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -7,7 +7,7 @@ const execAsync = promisify(exec);
 
 async function runCuration() {
   console.log('Starting curation process...');
-  const db = await dbPromise;
+  const { db, saveDb } = await dbPromise;
 
   const channels = await db.selectFrom('curated_channels').selectAll().execute();
 
@@ -16,7 +16,7 @@ async function runCuration() {
 
     // 1. Run get-all-galleries.mts
     try {
-      const { stdout, stderr } = await execAsync(`npx ts-node /data/data/com.termux/files/home/4Reels/curation/scrapers/get-all-galleries.mts ${channel.slug}`);
+      const { stdout, stderr } = await execAsync(`npx tsx /data/data/com.termux/files/home/4Reels/curation/scrapers/get-all-galleries.mts ${channel.slug}`);
       if (stderr) {
         console.error(`Error scraping all galleries for ${channel.slug}:`, stderr);
         continue; // Move to the next channel
@@ -27,7 +27,7 @@ async function runCuration() {
       // 2. Run get-gallery-details.mts for each new gallery
       for (const gallery of newGalleries) {
         try {
-          const { stdout: detailsStdout, stderr: detailsStderr } = await execAsync(`npx ts-node /data/data/com.termux/files/home/4Reels/curation/scrapers/get-gallery-details.mts ${gallery.url}`);
+          const { stdout: detailsStdout, stderr: detailsStderr } = await execAsync(`npx tsx /data/data/com.termux/files/home/4Reels/curation/scrapers/get-gallery-details.mts ${gallery.url}`);
           if (detailsStderr) {
             console.error(`Error scraping details for ${gallery.url}:`, detailsStderr);
             // Update gallery status to 'failed' in the database
@@ -58,6 +58,7 @@ async function runCuration() {
     }
   }
 
+  await saveDb();
   console.log('Curation process finished.');
 }
 
