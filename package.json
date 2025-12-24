@@ -23,8 +23,10 @@
     "cheerio": "^1.1.2",
     "dotenv": "^16.6.1",
     "ioredis": "^5.8.2",
+    "kysely": "^0.28.9",
     "node-cron": "^4.2.1",
-    "pino": "^10.1.0"
+    "pino": "^10.1.0",
+    "sql.js": "^1.13.0"
   },
   "devDependencies": {
     "@types/async-retry": "^1.4.8",
