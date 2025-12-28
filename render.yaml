@@ -9,7 +9,7 @@ services:
     plan: free
     # The build and start commands are run from the root of the repository.
     buildCommand: "npm install && npx prisma generate --schema=prisma/schema.prisma && npx tsc -p gallyfans-worker/tsconfig.json"
-    startCommand: "npm start --workspace=gallyfans-worker"
+    startCommand: "node gallyfans-worker/dist/index.js"
     healthCheckPath: /health
     envVars:
       - fromGroup: 4Reels-secrets # Use the correct, existing env group
