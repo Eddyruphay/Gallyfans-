@@ -3,9 +3,11 @@ import makeWASocket, {
   type GroupMetadata,
   fetchLatestBaileysVersion,
   Browsers,
+  DisconnectReason,
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import readline from 'readline';
+import { Boom } from '@hapi/boom';
 
 const logger = pino({ level: 'silent' });
 
@@ -19,7 +21,7 @@ function question(query: string): Promise<string> {
 }
 
 async function getGroupId() {
-  console.log('Iniciando cliente Baileys para obter o ID do Grupo...');
+  console.log('Iniciando cliente Baileys...');
   
   const { state, saveCreds } = await useMultiFileAuthState('baileys_auth_temp');
   const { version } = await fetchLatestBaileysVersion();
@@ -28,58 +30,54 @@ async function getGroupId() {
     version,
     auth: state,
     logger,
-    printQRInTerminal: false, // Desabilitar QR Code
-    browser: Browsers.macOS('Desktop'), // Usar um browser válido
+    printQRInTerminal: false,
+    browser: Browsers.ubuntu('Chrome'), // 1. Trocar o browser (essencial)
   });
 
   sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('connection.update', async (update) => {
-    const { connection, qr } = update;
+  // 3. Pedir o código logo após criar o socket (se necessário)
+  if (!sock.authState.creds.registered) {
+    try {
+      const phoneNumber = await question(
+        'Número do BOT (ex: 5511999998888): '
+      );
+      const code = await sock.requestPairingCode(phoneNumber);
+      console.log('\n==============================');
+      console.log(`🔐 Código de emparelhamento: ${code}`);
+      console.log('==============================');
+      console.log(
+        'No WhatsApp: Aparelhos Conectados > Conectar um aparelho > Conectar com número'
+      );
+    } catch (err) {
+      console.error('Erro ao gerar código:', err);
+      sock.end(err);
+      process.exit(1);
+    }
+  }
 
-    // Se a conexão já estiver aberta, não faz nada aqui, apenas informa.
+  // 4. Evento connection.update fica só para status
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect } = update;
     if (connection === 'open') {
       console.log('\n--------------------------------------------------');
-      console.log('✅ Conexão aberta! O cliente está pronto.');
+      console.log('✅ Conectado com sucesso! O cliente está pronto.');
       console.log('1. Se ainda não o fez, crie um grupo no seu WhatsApp.');
       console.log('2. Adicione este número (o do bot) ao grupo.');
       console.log('Aguardando ser adicionado a um grupo...');
       console.log('--------------------------------------------------');
-      return;
-    }
-
-    // Se a conexão fechar, encerra o processo.
-    if (connection === 'close') {
-      console.log('Conexão fechada.');
-      process.exit(0);
-      return;
-    }
-
-    // O momento certo para pedir o código é quando o QR code seria gerado.
-    if (qr) {
-      // Não pedir o código se a sessão já estiver registrada/logada.
-      if (sock.authState.creds.registered) {
-        console.log('Sessão já registrada. Aguardando conexão...');
-        return;
-      }
-      
-      console.log('Iniciando processo de emparelhamento por código...');
-      const phoneNumber = await question(
-        'Por favor, insira o número de telefone do BOT (formato: 5511999998888):\n'
-      );
-      try {
-        const code = await sock.requestPairingCode(phoneNumber);
-        console.log('--------------------------------------------------');
-        console.log(`Seu código de emparelhamento é: ${code}`);
-        console.log('--------------------------------------------------');
-        console.log('Abra o WhatsApp no seu celular, vá para "Aparelhos Conectados" > "Conectar um aparelho" > "Conectar com número de telefone".');
-      } catch (error) {
-        console.error('Falha ao solicitar o código de emparelhamento:', error);
-        process.exit(1);
+    } else if (connection === 'close') {
+      const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+      console.log('❌ Conexão encerrada. Motivo:', lastDisconnect?.error, '. Reconectando:', shouldReconnect);
+      if (shouldReconnect) {
+        getGroupId();
+      } else {
+        process.exit(0);
       }
     }
   });
 
+  // Evento para capturar o ID do grupo
   sock.ev.on('groups.upsert', (groups: GroupMetadata[]) => {
     const group = groups[0];
     if (group.id) {
@@ -91,13 +89,10 @@ async function getGroupId() {
       console.log('\nCopie o "ID do Grupo" acima. Este é o valor que você precisa.');
       console.log('Você pode fechar este script agora (Ctrl+C).');
       
-      // Encerra o processo para não ficar rodando indefinidamente
+      sock.end();
       process.exit(0);
     }
   });
-
-  // Mantém o script rodando
-  await new Promise(() => {});
 }
 
 getGroupId().catch(console.error);
