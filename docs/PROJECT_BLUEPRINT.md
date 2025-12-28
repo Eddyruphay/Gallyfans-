@@ -1,98 +1,96 @@
-# Blueprint do Ecossistema Gally v1.0
+# Blueprint do Ecossistema Gally v2.0
 
-**Status do Documento:** Ativo (Dezembro de 2025)
+**Status do Documento:** Ativo (Dezembro de 2025) - **Revisão Estratégica**
 
 ## 1. Visão e Filosofia do Ecossistema
 
-**Gally™** é uma sociedade de conteúdo digital focada em criar e distribuir valor para nichos de audiência específicos através de canais diretos e engajadores. Nossa filosofia é baseada em **automação, eficiência e alto valor agregado**, onde uma única assinatura destrava um universo de conteúdo curado.
+**Gally™** é uma sociedade de conteúdo digital focada em criar e distribuir valor para nichos de audiência específicos através de canais diretos e engajadores. Nossa filosofia é baseada em **automação, eficiência e alto valor agregado**.
 
-A inovação é o nosso motor. Buscamos não apenas otimizar o conhecido, mas explorar o desconhecido, antecipando tendências e criando novos horizontes de interação e conteúdo.
-
----
-
-## 2. Arquitetura do Ecossistema
-
-O ecossistema é composto por componentes modulares e interdependentes, cada um com uma função clara.
-
-### 2.1. O Pilar de Monetização: GallyPay
-
-- **Missão:** Ser o portal de entrada para o ecossistema Gally. Um sistema de assinatura centralizado, simples e seguro.
-- **Modelo de Negócio:** Uma taxa de assinatura mensal (atualmente definida em 22 MT) que concede ao usuário acesso a todos os canais de conteúdo da Gally.
-- **Arquitetura Proposta (A ser pesquisada):**
-    - **Frontend:** Uma página de checkout simples e segura, possivelmente hospedada na Vercel ou Cloudflare Pages.
-    - **Backend:** Uma API (ex: Hono.js na Vercel/Cloudflare) que se integra com um gateway de pagamento.
-    - **Gateway de Pagamento:** Pesquisar e integrar soluções como **Stripe**, **PayPal**, ou gateways locais (ex: M-Pesa), dependendo do mercado-alvo.
-    - **Webhooks:** O GallyPay deve emitir eventos (ex: `subscription.created`, `subscription.canceled`) via webhooks. Esses eventos serão consumidos por outros sistemas para gerenciar o acesso dos usuários.
-
-### 2.2. O Motor de Conteúdo: 4Reels
-
-- **Missão:** Atuar como a agência de curadoria e produção de conteúdo para os canais da Gally. É o componente que alimenta o ecossistema com material relevante e de alta qualidade.
-- **Arquitetura Atual:** A arquitetura é centrada no `gallyfans-worker`, um serviço de background robusto e resiliente. Ela é composta por:
-    - **Núcleo Operacional (Termux & Gemini):** Para desenvolvimento, administração e execução dos scripts de curadoria.
-    - **Publicador (`gallyfans-worker`):** Um serviço Node.js, conteinerizado com Docker, que roda de forma contínua (na Render). Ele é responsável por buscar trabalhos na fila e publicá-los no WhatsApp.
-    - **API & Banco de Dados (Vercel & Neon):** A espinha dorsal de dados, fornecendo a fila de publicação e o conteúdo para o worker.
-    - **Cache de Sessão (Redis):** Garante a persistência da sessão do WhatsApp, permitindo que o worker se reconecte automaticamente.
-
-### 2.3. Os Canais de Distribuição
-
-Canais de WhatsApp onde o conteúdo curado pelo 4Reels é entregue.
-
-- **Gallyfans (Ativo):**
-    - **Foco:** Conteúdo de modelos e ensaios fotográficos.
-    - **Status:** Em operação, com automação de publicação em andamento.
-
-- **GallySound (Conceito):**
-    - **Foco:** Curadoria de música, playlists, sets de DJs, e notícias do mundo da música.
-    - **Implicações:** Exigirá novos scripts de curadoria (`curator-sound.mts`) para extrair informações de plataformas como SoundCloud, Spotify, ou blogs de música.
-
-- **GallyNews (Conceito):**
-    - **Foco:** Curadoria de notícias sobre tecnologia, cultura, ou qualquer outro nicho de interesse.
-    - **Implicações:** Exigirá scripts de curadoria (`curator-news.mts`) focados em portais de notícias, feeds RSS e APIs de mídia.
+A inovação é o nosso motor. Com a v2, evoluímos de um modelo de automação simples para um ecossistema orquestrado por inteligência artificial, separando o planejamento estratégico da execução autônoma.
 
 ---
 
-## 3. Fluxo de Integração do Ecossistema (Visão Futura)
+## 2. A Hierarquia dos Agentes
 
-Este é o fluxo que conecta todos os componentes:
+A arquitetura Gally v2 introduz uma separação de papéis fundamental para a escalabilidade e resiliência do projeto.
 
-1.  **Aquisição:** Um novo usuário acessa a página do GallyPay e realiza a assinatura.
-2.  **Ativação:** O gateway de pagamento confirma o pagamento e notifica o backend do GallyPay.
-3.  **Notificação:** O GallyPay dispara um webhook (`subscription.created`) com os dados do usuário (ex: número de WhatsApp).
-4.  **Provisionamento:** Um serviço "Gerenciador de Acessos" (pode ser um novo Cloudflare Worker ou uma função na nossa API Vercel) recebe o webhook.
-5.  **Ação:** O Gerenciador de Acessos utiliza a API do WhatsApp (via Baileys) para adicionar o número do usuário aos grupos/canais correspondentes (Gallyfans, GallySound, etc.).
-6.  **Entrega de Conteúdo:** O `gallyfans-worker` continua seu trabalho, e o novo usuário começa a receber o conteúdo nos canais em que foi adicionado.
+### 2.1. O Arquiteto (Gemini-CLI em Termux)
+
+- **Missão:** Atuar como a inteligência estratégica no topo da hierarquia. É o cérebro do projeto.
+- **Responsabilidades:**
+    - Idealizar e projetar a arquitetura de dados, serviços e fluxos de trabalho.
+    - Pesquisar e selecionar tecnologias.
+    - Planejar o roadmap estratégico.
+    - Conduzir o desenvolvimento e a implementação de novos componentes.
+- **Modus Operandi:** Opera em um ambiente de desenvolvimento (Termux), dependente de interação humana para iniciar as sessões de trabalho. Sua função é pensar, projetar e construir, não operar o dia-a-dia.
+
+### 2.2. O Gally Agent™ (Operador Autônomo em Nuvem)
+
+- **Missão:** Ser o operador autônomo do ecossistema Gally, executando as estratégias definidas pelo Arquiteto. É o conjunto de "mãos" que trabalha 24/7 na nuvem.
+- **Responsabilidades:**
+    - Executar os fluxos de trabalho de publicação de conteúdo.
+    - Monitorar a saúde dos serviços.
+    - Diagnosticar e reportar falhas.
+    - Potencialmente, realizar ações de auto-correção.
+- **Tecnologia (Decidida):** Será construído usando o framework **CrewAI**. Ele será implantado como um **Web Service** no Render (plano gratuito) e usará um modelo de linguagem (LLM) como Gemini ou GPT, autenticado via chave de API.
 
 ---
 
-## 4. Roadmap Estratégico
+## 3. A Arquitetura Gally v2
 
-Dividimos o desenvolvimento do ecossistema em fases claras.
+Esta seção detalha a filosofia por trás de cada componente do nosso ecossistema.
 
-- **FASE 1: Solidificar o Core (Em Andamento)**
-    - **Objetivo:** Finalizar e estabilizar 100% da automação do canal `Gallyfans`.
-    - **Entregáveis:** Scripts de curadoria robustos e um `gallyfans-worker` totalmente autônomo e estável, publicando conteúdo de forma confiável.
+### 3.1. Filosofia da Curadoria (O Berço do Conteúdo)
 
-- **FASE 2: Construir o Pilar de Monetização**
+O processo de curadoria é a base de todo o valor que geramos. Ele acontece localmente, no ambiente do Arquiteto, para máxima flexibilidade e poder de desenvolvimento.
+
+- **Ambiente:** `curadoria.db` (SQLite) em Termux.
+- **Workflow:**
+    1.  **Coleta Bruta:** Scripts (`harvest-*.mts`) coletam dados de diversas fontes.
+    2.  **Refinamento e Classificação:** Scripts (`classify-*.mts`, `run-curation.mts`) processam, limpam e enriquecem os dados brutos.
+    3.  **Criação de Edições:** O curador utiliza os dados refinados para montar "Edições" temáticas, que são o nosso produto final.
+    4.  **Transferência para Produção:** Um script dedicado (`populate-channels.mts` ou similar) lê os dados curados do `curadoria.db` e os insere no banco de dados de produção (Neon), prontos para serem processados pelo Gally Agent.
+
+### 3.2. Filosofia do Banco de Dados (Neon DB - O Repositório da Verdade)
+
+O banco de dados de produção é o coração do sistema, projetado para integridade, versionamento e clareza.
+
+- **Tabela `creators`:** Armazena os criadores de conteúdo (anteriormente `models`).
+- **Tabela `editions`:** Define as "marcas" ou "séries" de conteúdo (ex: "As Mais Belas de 2025").
+- **Tabela `edition_versions`:** **(NOVA)** Permite múltiplas versões de uma mesma edição (v1, v2, Director's Cut). Cada versão é um conjunto ordenado de galerias.
+- **Tabela `edition_version_items`:** **(NOVA)** Tabela de junção que define quais galerias pertencem a qual versão de uma edição e sua posição.
+- **Tabela `published_items`:** **(NOVA - CRÍTICA)** Um "snapshot" imutável dos itens no momento em que uma versão é publicada. Contém todos os dados necessários para a publicação (título, URLs de imagem em JSONB, nome do criador). **Esta é a fonte da verdade para o worker.** Possui um campo `status` (`pending`, `processing`, `published`, `failed`).
+- **Tabela `publication_jobs`:** **(NOVA)** Um log de auditoria. Após o worker publicar um item, ele insere um registro aqui, criando um histórico de tudo o que foi publicado.
+
+### 3.3. Filosofia de Execução (O Agente em Ação)
+
+Esta seção descreve como o Gally Agent opera, considerando as restrições do ambiente de produção.
+
+- **Modelo de Hospedagem:** O Gally Agent vive como um **Web Service** no Render (plano gratuito). Devido às limitações deste plano, o serviço "dorme" após 15 minutos de inatividade.
+- **Modelo de Acionamento (Trigger):** Um workflow do **GitHub Actions** (`.github/workflows/keep-alive.yml`) é executado a cada 10 minutos. Este workflow envia uma requisição HTTP (`curl`) para um endpoint específico do nosso Web Service (ex: `/trigger-cycle`).
+- **Ciclo de Vida da Execução:**
+    1.  **O Despertar:** A requisição do GitHub Actions "acorda" o serviço no Render.
+    2.  **Início da Missão:** O código no endpoint `/trigger-cycle` é executado e inicia o agente CrewAI (`crew.kickoff()`), que executa **um ciclo completo** de sua tarefa.
+    3.  **A Missão:** O agente, usando seu "cérebro" (LLM) e "ferramentas" (funções Python), busca e bloqueia um trabalho no banco de dados, publica o conteúdo no WhatsApp e atualiza o status, conforme definido.
+    4.  **O Repouso:** Ao final do ciclo, o endpoint retorna uma resposta de sucesso. O serviço fica ocioso e, após 15 minutos, voltará a "dormir" até o próximo chamado do GitHub Actions.
+- **Inteligência de Horário (Visão Futura):** Este modelo permite futuras otimizações, como variar a frequência do acionamento do GitHub Actions para horários de pico ou introduzir um atraso aleatório dentro do agente para tornar as publicações menos previsíveis.
+
+---
+
+## 4. Roadmap Estratégico (Revisado)
+
+- **FASE 1: Implementar a Arquitetura v2 (Em Andamento)**
+    - **Objetivo:** Refatorar o banco de dados e o `gallyfans-worker` para se alinharem com a nova arquitetura.
+    - **Entregáveis:** Migração do schema no Neon DB, atualização do `schema.prisma`, e implementação da nova lógica no `publisher.ts` do worker.
+
+- **FASE 2: Pesquisar e Construir o Gally Agent™ v0.1**
+    - **Objetivo:** Escolher um framework de IA e desenvolver uma prova de conceito do Gally Agent que possa orquestrar o `gallyfans-worker`.
+    - **Entregáveis:** Documento de pesquisa com prós e contras das tecnologias, e um protótipo funcional do agente.
+
+- **FASE 3: Solidificar a Monetização (GallyPay)**
     - **Objetivo:** Desenvolver e lançar a primeira versão do `GallyPay`.
-    - **Entregáveis:** Pesquisa de gateway de pagamento, desenvolvimento da página de checkout e da API de backend, e implementação do sistema de webhooks.
+    - **Entregáveis:** Pesquisa de gateway de pagamento, desenvolvimento do checkout e da API de backend.
 
-- **FASE 3: Expandir o Conteúdo**
-    - **Objetivo:** Lançar os novos canais de conteúdo.
-    - **Entregáveis:** Desenvolvimento dos scripts de curadoria para `GallySound` e `GallyNews` e integração com o fluxo de publicação existente.
-
-- **FASE 4: Gerenciamento e Retenção**
-    - **Objetivo:** Construir o sistema de gerenciamento de acessos e cancelamentos.
-    - **Entregáveis:** O serviço "Gerenciador de Acessos" que lida com os webhooks do GallyPay para adicionar/remover usuários dos canais.
-
----
-
-## 5. Detalhes Técnicos Atuais
-
-*(Esta seção foi simplificada após a reestruturação do projeto em Dezembro de 2025. O foco agora é na arquitetura principal do `gallyfans-worker` e sua interação com a API e o banco de dados.)*
-
-A arquitetura atual é um modelo distribuído que utiliza:
-- **`gallyfans-worker`:** Um serviço de background em Node.js para publicação automática.
-- **Conteinerização:** Docker para criar um ambiente de produção consistente e seguro para o worker.
-- **Banco de Dados Serverless:** Neon (PostgreSQL) para armazenar todo o conteúdo e a fila de publicação.
-- **API Serverless:** Vercel para expor os dados do banco de dados de forma segura para o worker.
-- **Cache Distribuído:** Redis para persistir a sessão do WhatsApp.
+- **FASE 4: Expandir o Conteúdo e a Retenção**
+    - **Objetivo:** Lançar novos canais (`GallySound`, `GallyNews`) e construir o sistema de gerenciamento de acessos.
+    - **Entregáveis:** Novos scripts de curadoria e o serviço "Gerenciador de Acessos".

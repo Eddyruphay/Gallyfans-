@@ -15,7 +15,7 @@ datasource db {
 // --- CORE DATA MODELS
 // -------------------------------------------------
 
-model Model {
+model Creator {
   id               Int      @id @default(autoincrement())
   name             String   @unique
   slug             String   @unique
@@ -27,7 +27,7 @@ model Model {
 
   galleries Gallery[]
 
-  @@map("models")
+  @@map("creators")
 }
 
 model Gallery {
@@ -42,11 +42,11 @@ model Gallery {
   gallyfansVotesDown Int      @default(0) @map("gallyfans_votes_down")
   createdAt          DateTime @default(now()) @map("created_at")
 
-  model          Model             @relation(fields: [modelId], references: [id], onDelete: Cascade)
-  images         Image[]
-  tags           GalleryTag[]
-  categories     GalleryCategory[]
-  editionEntries EditionGallery[]
+  creator      Creator             @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  images       Image[]
+  tags         GalleryTag[]
+  categories   GalleryCategory[]
+  versionItems EditionVersionItem[] // Replaces editionEntries
 
   @@unique([modelId, originalId])
   @@map("galleries")
@@ -111,7 +111,7 @@ model GalleryCategory {
 }
 
 // -------------------------------------------------
-// --- CURATION & PUBLISHING SYSTEM
+// --- CURATION & PUBLISHING SYSTEM (GALLYFANS V2)
 // -------------------------------------------------
 
 model Edition {
@@ -119,42 +119,74 @@ model Edition {
   name        String
   slug        String   @unique
   description String?
-  status      String   @default("draft") // 'draft', 'ready_to_publish', 'published', 'archived'
+  status      String   @default("draft")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  galleries EditionGallery[]
+  versions EditionVersion[] // Replaces galleries
 
   @@map("editions")
 }
 
-model EditionGallery {
-  editionId Int
-  galleryId Int
-  position  Int @default(0)
-
-  edition Edition @relation(fields: [editionId], references: [id], onDelete: Cascade)
-  gallery Gallery @relation(fields: [galleryId], references: [id], onDelete: Cascade)
-
-  @@id([editionId, galleryId])
-  @@map("edition_galleries")
-}
-
-model PublishingQueue {
-  id            Int       @id @default(autoincrement())
+model EditionVersion {
+  id            Int      @id @default(autoincrement())
   editionId     Int
-  galleryId     Int
-  targetChannel String    @map("target_channel") // 'whatsapp_gallyfans', 'telegram_gallyx'
-  status        String    @default("queued") // 'queued', 'processing', 'published', 'failed'
-  scheduledFor  DateTime  @default(now()) @map("scheduled_for")
-  publishedAt   DateTime? @map("published_at")
-  errorLog      String?   @map("error_log")
+  versionNumber Int      @map("version_number")
+  status        String   @default("draft") // 'draft', 'published', 'archived'
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
 
-  // Nao criamos relations aqui de propósito para desacoplar a fila.
-  // Se uma edição ou galeria for deletada, o registro na fila permanece
-  // para fins de log histórico.
+  edition Edition              @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  items   EditionVersionItem[]
 
-  @@map("publishing_queue")
+  @@unique([editionId, versionNumber])
+  @@map("edition_versions")
 }
+
+model EditionVersionItem {
+  id        Int @id @default(autoincrement())
+  versionId Int @map("version_id")
+  galleryId Int @map("gallery_id")
+  position  Int
+
+  version EditionVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  gallery Gallery        @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+
+  @@unique([versionId, galleryId])
+  @@map("edition_version_items")
+}
+
+model PublishedItem {
+  id                  Int       @id @default(autoincrement())
+  editionVersionId    Int       @map("edition_version_id")
+  galleryId           Int       @map("gallery_id")
+  creatorName         String    @map("creator_name")
+  galleryTitle        String    @map("gallery_title")
+  images              Json      @db.JsonB
+  status              String    @default("pending") // 'pending', 'processing', 'published', 'failed'
+  createdAt           DateTime  @default(now()) @map("created_at")
+  processingStartedAt DateTime? @map("processing_started_at")
+  publishedAt         DateTime? @map("published_at")
+  errorLog            String?   @map("error_log")
+
+  publicationJobs PublicationJob[]
+
+  @@index([status])
+  @@map("published_items")
+}
+
+model PublicationJob {
+  id              Int      @id @default(autoincrement())
+  publishedItemId Int      @map("published_item_id")
+  targetChannel   String   @map("target_channel")
+  status          String // 'SUCCESS', 'FAILURE'
+  completedAt     DateTime @default(now()) @map("completed_at")
+  details         String?  @db.Text
+
+  publishedItem PublishedItem @relation(fields: [publishedItemId], references: [id], onDelete: Cascade)
+
+  @@map("publication_jobs")
+}
+
 
 // -------------------------------------------------
 // --- SYSTEM & SERVICE SESSIONS

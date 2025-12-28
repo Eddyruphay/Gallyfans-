@@ -3,53 +3,75 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import cron from 'node-cron';
 import { runPublicationCycle } from './publisher.js';
-import { whatsappService } from './services/whatsapp.js';
+import { initializeWhatsApp } from './whatsapp/client.js';
+import { acquireStartupLock, releaseStartupLock, startLockHeartbeat } from './redis.js';
 import logger from './logger.js';
 import { config } from './config.js';
 
 const app = new Hono();
-
-// Endpoint raiz para health check e confirmação
-app.get('/', (c) => {
-  logger.info('[HTTP] Root endpoint was hit. Service is running.');
-  return c.text('Gallyfans Worker is alive!');
-});
 
 app.get('/health', (c) => {
   logger.info('[HTTP] Health check endpoint was hit.');
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+async function main() {
+  logger.info('[MAIN] Attempting to start worker instance...');
 
-async function startServerAndScheduler() {
-  try {
-    logger.info('[MAIN] Initializing services...');
-    await whatsappService.initialize();
-    logger.info('[MAIN] WhatsApp service initialization process initiated.');
+  const isLeader = await acquireStartupLock();
 
-    // Agenda a tarefa para rodar no intervalo configurado
-    cron.schedule(`*/${config.publicationIntervalMs / 60000} * * * *`, () => {
+  if (isLeader) {
+    logger.info('[MAIN] Lock acquired. Starting as LEADER instance.');
+    
+    // Start refreshing the lock to remain leader
+    startLockHeartbeat();
+
+    // Initialize services
+    await initializeWhatsApp();
+
+    // Schedule the main task
+    cron.schedule(`*/${config.publicationIntervalMinutes} * * * *`, () => {
       logger.info('[CRON] Scheduled publication cycle triggered.');
-      runPublicationCycle();
+      // We don't await this because cycles can take longer than the interval
+      runPublicationCycle().catch(err => {
+        logger.error({ err }, '[CRON] Unhandled error in publication cycle.');
+      });
     });
-    logger.info(`[CRON] Publication cycle scheduled to run every ${config.publicationIntervalMs / 60000} minutes.`);
+    logger.info(`[CRON] Publication cycle scheduled to run every ${config.publicationIntervalMinutes} minutes.`);
 
-    // Executa um ciclo inicial logo após o boot
+    // Run one cycle on startup
     logger.info('[MAIN] Running initial publication cycle...');
-    await runPublicationCycle();
-
-    // Inicia o servidor HTTP
-    serve({
-      fetch: app.fetch,
-      port: config.port,
-    }, (info: AddressInfo) => {
-        logger.info(`[HTTP] Server listening on http://localhost:${info.port}`);
+    runPublicationCycle().catch(err => {
+      logger.error({ err }, '[MAIN] Unhandled error in initial publication cycle.');
     });
 
-  } catch (error) {
-    logger.fatal({ err: error }, '[MAIN] Failed to start the application.');
-    process.exit(1);
+  } else {
+    logger.warn('[MAIN] Could not acquire lock. Starting as PASSIVE instance.');
+    // This instance will only serve health checks and wait to be promoted
+    // if the leader instance fails.
   }
+
+  // All instances run the web server for health checks
+  serve({
+    fetch: app.fetch,
+    port: config.port,
+  }, (info: AddressInfo) => {
+    logger.info(`[HTTP] Server listening on http://localhost:${info.port}`);
+  });
 }
 
-startServerAndScheduler();
+// --- Graceful Shutdown ---
+async function gracefulShutdown(signal: string) {
+  logger.warn(`[MAIN] Received ${signal}. Shutting down gracefully...`);
+  await releaseStartupLock();
+  process.exit(0);
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+// --- Start Application ---
+main().catch(err => {
+  logger.fatal({ err }, '[MAIN] Failed to start the application.');
+  process.exit(1);
+});

@@ -56,7 +56,7 @@ async function createDb() {
   }
 
   const dialect = new SqliteDialect({
-    database: async () => db,
+    database: db,
   });
 
   const kysely = new Kysely<Database>({

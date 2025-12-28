@@ -14,8 +14,9 @@ async function getAllGalleries(channelSlug: string) {
     process.exit(1);
   }
 
-  const baseUrl = `https://www.pornpics.com/channels/${channelSlug}/`;
-  console.error(`Buscando galerias do canal: ${channelSlug}`);
+  const formattedSlug = channelSlug.toLowerCase().replace(/\s+/g, '-');
+  const baseUrl = `https://www.pornpics.com/channels/${formattedSlug}/`;
+  console.error(`Buscando galerias do canal: ${channelSlug} (slug formatado: ${formattedSlug})`);
 
   try {
     // Get the HTML of the first page to extract total gallery count
@@ -29,7 +30,7 @@ async function getAllGalleries(channelSlug: string) {
     // Nova lógica de paginação: Calcular a partir do número total de galerias
     const totalGalleriesSelector = '.card-galleries-count';
     const galleriesCountText = $(totalGalleriesSelector).text().trim();
-    const totalGalleries = parseInt(galleriesCountText, 10);
+    const totalGalleries = parseInt(galleriesCountText.replace(/,/g, ''), 10);
 
     if (isNaN(totalGalleries) || totalGalleries === 0) {
       throw new Error('Não foi possível encontrar o número total de galerias.');

@@ -15,13 +15,22 @@ async function populateChannels() {
     locateFile: file => path.join(process.cwd(), 'node_modules', 'sql.js', 'dist', file)
   });
 
-  // Ler o schema para garantir que as tabelas existam
-  const schemaSql = await fs.readFile(SCHEMA_FILE, 'utf-8');
-  
-  // Criar um novo banco de dados em memória e executar o schema
-  const db = new SQL.Database();
-  db.exec(schemaSql);
-  console.log('Schema do banco de dados aplicado em memória.');
+  let db;
+  try {
+    const fileBuffer = await fs.readFile(DB_FILE);
+    db = new SQL.Database(fileBuffer);
+    console.log('Banco de dados existente carregado.');
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      console.log('Nenhum banco de dados encontrado, criando um novo.');
+      db = new SQL.Database();
+      const schemaSql = await fs.readFile(SCHEMA_FILE, 'utf-8');
+      db.exec(schemaSql);
+      console.log('Schema do banco de dados aplicado.');
+    } else {
+      throw error;
+    }
+  }
 
   // Ler os canais de elite
   const channelsJson = await fs.readFile(ELITE_CHANNELS_FILE, 'utf-8');

@@ -3,20 +3,18 @@ import 'dotenv/config';
 
 const {
   DATABASE_URL,
-  TARGET_CHANNEL_ID,
   REDIS_URL,
-  WA_PHONE_NUMBER,
+  TARGET_CHANNEL_ID,
+  WA_SESSION_PATH,
   PORT,
   PUBLICATION_INTERVAL_MINUTES,
-  WA_SESSION_NAME,
 } = process.env;
 
 // Validação de variáveis de ambiente essenciais
 const requiredEnvVars = {
   DATABASE_URL,
-  TARGET_CHANNEL_ID,
-  WA_PHONE_NUMBER,
   REDIS_URL,
+  TARGET_CHANNEL_ID,
 };
 
 const missingEnvVars = Object.entries(requiredEnvVars)
@@ -30,12 +28,10 @@ if (missingEnvVars.length > 0) {
 
 // Configuração unificada
 export const config = {
+  databaseUrl: DATABASE_URL!,
+  redisUrl: REDIS_URL!,
   targetChannelId: TARGET_CHANNEL_ID!,
-  waPhoneNumber: WA_PHONE_NUMBER!,
-  port: PORT ? parseInt(PORT, 10) : 3000,
-  publicationIntervalMs: (parseInt(PUBLICATION_INTERVAL_MINUTES || '15', 10)) * 60 * 1000,
-  redis: {
-    url: REDIS_URL!,
-  },
-  baileysAuthPath: WA_SESSION_NAME || 'baileys_auth_temp',
+  waSessionPath: WA_SESSION_PATH || 'baileys_auth_temp',
+  port: PORT ? parseInt(PORT, 10) : 3001,
+  publicationIntervalMinutes: parseInt(PUBLICATION_INTERVAL_MINUTES || '15', 10),
 };
