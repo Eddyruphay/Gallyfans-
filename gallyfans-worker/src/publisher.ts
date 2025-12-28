@@ -13,7 +13,7 @@ async function getNextJob() {
     const job = await prisma.$transaction(async (tx) => {
       const nextJobs = await tx.$queryRaw<any[]>`
         UPDATE "published_items"
-        SET status = 'processing', "processingStartedAt" = NOW()
+        SET status = 'processing', "processing_started_at" = NOW()
         WHERE id = (
           SELECT id
           FROM "published_items"
