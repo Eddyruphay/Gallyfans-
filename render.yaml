@@ -12,6 +12,10 @@ services:
     startCommand: "node gallyfans-worker/dist/index.js"
     healthCheckPath: /health
     envVars:
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: session-memory
       - fromGroup: 4Reels-secrets # Use the correct, existing env group
 
   # The Redis instance used for distributed locking.
