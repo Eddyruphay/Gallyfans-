@@ -34,35 +34,49 @@ async function getGroupId() {
 
   sock.ev.on('creds.update', saveCreds);
 
-  // Se a conexão já existir, não pedir o código
-  if (!sock.authState.creds.registered) {
-    const phoneNumber = await question(
-      'Por favor, insira o número de telefone do BOT (formato: 5511999998888):\n'
-    );
-    try {
-      const code = await sock.requestPairingCode(phoneNumber);
-      console.log('--------------------------------------------------');
-      console.log(`Seu código de emparelhamento é: ${code}`);
-      console.log('--------------------------------------------------');
-      console.log('Abra o WhatsApp no seu celular, vá para "Aparelhos Conectados" > "Conectar um aparelho" > "Conectar com número de telefone".');
-    } catch (error) {
-      console.error('Falha ao solicitar o código de emparelhamento:', error);
-      process.exit(1);
-    }
-  }
+  sock.ev.on('connection.update', async (update) => {
+    const { connection, qr } = update;
 
-  sock.ev.on('connection.update', (update) => {
-    if (update.connection === 'open') {
+    // Se a conexão já estiver aberta, não faz nada aqui, apenas informa.
+    if (connection === 'open') {
       console.log('\n--------------------------------------------------');
       console.log('✅ Conexão aberta! O cliente está pronto.');
       console.log('1. Se ainda não o fez, crie um grupo no seu WhatsApp.');
       console.log('2. Adicione este número (o do bot) ao grupo.');
       console.log('Aguardando ser adicionado a um grupo...');
       console.log('--------------------------------------------------');
+      return;
     }
-    if (update.connection === 'close') {
+
+    // Se a conexão fechar, encerra o processo.
+    if (connection === 'close') {
       console.log('Conexão fechada.');
       process.exit(0);
+      return;
+    }
+
+    // O momento certo para pedir o código é quando o QR code seria gerado.
+    if (qr) {
+      // Não pedir o código se a sessão já estiver registrada/logada.
+      if (sock.authState.creds.registered) {
+        console.log('Sessão já registrada. Aguardando conexão...');
+        return;
+      }
+      
+      console.log('Iniciando processo de emparelhamento por código...');
+      const phoneNumber = await question(
+        'Por favor, insira o número de telefone do BOT (formato: 5511999998888):\n'
+      );
+      try {
+        const code = await sock.requestPairingCode(phoneNumber);
+        console.log('--------------------------------------------------');
+        console.log(`Seu código de emparelhamento é: ${code}`);
+        console.log('--------------------------------------------------');
+        console.log('Abra o WhatsApp no seu celular, vá para "Aparelhos Conectados" > "Conectar um aparelho" > "Conectar com número de telefone".');
+      } catch (error) {
+        console.error('Falha ao solicitar o código de emparelhamento:', error);
+        process.exit(1);
+      }
     }
   });
 
