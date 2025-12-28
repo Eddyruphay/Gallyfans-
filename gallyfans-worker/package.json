@@ -10,7 +10,7 @@
     "@hono/node-server": "^1.11.4",
     "@hapi/boom": "^10.0.1",
     "@prisma/client": "^5.17.0",
-    "@teamolduser/baileys": "latest",
+    "@whiskeysockets/baileys": "^6.7.5",
     "dotenv": "^16.4.5",
     "hono": "^4.4.13",
     "ioredis": "^5.4.1",
