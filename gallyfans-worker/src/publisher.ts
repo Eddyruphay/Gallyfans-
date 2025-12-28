@@ -1,4 +1,4 @@
-import { PrismaClient, Image } from '@prisma/client';
+import { PrismaClient, type Image } from '@prisma/client';
 import { config } from './config.js';
 import logger from './logger.js';
 import { getWhatsAppClient } from './whatsapp/client.js';
@@ -66,7 +66,7 @@ async function updateJobStatus(jobId: number, status: 'published' | 'failed', er
       where: { id: jobId },
       data: {
         status,
-        errorLog,
+        errorLog: errorLog || null,
         publishedAt: status === 'published' ? new Date() : null,
       },
     });
@@ -103,6 +103,8 @@ export async function runPublicationCycle() {
 
     for (let i = 0; i < images.length; i++) {
       const image = images[i];
+      if (!image) continue; // Safeguard for undefined images in the array
+      
       const caption = i === 0 ? galleryTitle : ' ';
       
       await whatsappClient.sendMessage(config.targetChannelId, {
@@ -115,7 +117,9 @@ export async function runPublicationCycle() {
       }
     }
 
-    await updateJobStatus(jobId, 'published');
+    if (jobId) {
+      await updateJobStatus(jobId, 'published');
+    }
     logger.info({ jobId }, '[PUBLISHER] Job finished successfully.');
 
   } catch (error: any) {

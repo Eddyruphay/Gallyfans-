@@ -4,8 +4,8 @@ import makeWASocket, {
   type WASocket,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
-import { config } from './config.js';
-import logger from './logger.js';
+import { config } from '../config.js';
+import logger from '../logger.js';
 
 let sock: WASocket | null = null;
 
