@@ -18,7 +18,7 @@ async function getNextJob() {
           SELECT id
           FROM "published_items"
           WHERE status = 'pending'
-          ORDER BY "createdAt" ASC
+          ORDER BY "created_at" ASC
           LIMIT 1
           FOR UPDATE SKIP LOCKED
         )
