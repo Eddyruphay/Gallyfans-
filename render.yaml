@@ -1,0 +1,24 @@
+# This is the single source of truth for deploying services to Render.
+services:
+  # The gallyfans-worker is a Web Service to have a public URL for the keep-alive ping.
+  # This prevents the free instance from spinning down and losing the WhatsApp session.
+  - type: web
+    name: gallyfans-worker
+    env: node
+    region: oregon
+    plan: free
+    # The root of the repo is the build context, but the commands will be run from the service directory.
+    # Render's Node.js environment will automatically look for the package.json in this directory.
+    rootDir: ./gallyfans-worker
+    buildCommand: "npm install && npx prisma generate && npm run build"
+    startCommand: "npm start"
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: 4Reels-secrets # Use the correct, existing env group
+
+  # The Redis instance used for distributed locking.
+  - type: redis
+    name: session-memory
+    region: oregon
+    plan: free
+    ipAllowList: [] # Open for development. Can be restricted later.
