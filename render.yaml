@@ -13,7 +13,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: REDIS_URL
-        value: rediss://red-d4kc50buibrs73fdgp2g:tYg9xVhCMR6uaRA1dSbW4JUODgOYQb7s@oregon-keyvalue.render.com:6379
+        value: redis://red-d58el3je5dus73dsiieg:6379
       - fromGroup: 4Reels-secrets # Use the correct, existing env group
 
   # The Redis instance used for distributed locking.
