@@ -26,7 +26,8 @@
     "kysely": "^0.28.9",
     "node-cron": "^4.2.1",
     "pino": "^10.1.0",
-    "sql.js": "^1.13.0"
+    "sql.js": "^1.13.0",
+    "turbo": "^2.6.3"
   },
   "devDependencies": {
     "@types/async-retry": "^1.4.8",
@@ -42,13 +43,12 @@
     "prettier": "^3.7.3",
     "prisma": "^6.19.0",
     "ts-node": "^10.9.2",
-    "turbo": "^2.6.3",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.48.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npx prisma generate && turbo run build --filter=gallyfans-worker",
+    "build": "turbo run build",
     "depcheck": "depcheck",
     "lint": "eslint . --ext .ts,.mts",
     "format": "prettier --write ."

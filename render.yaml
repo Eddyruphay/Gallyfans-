@@ -7,11 +7,9 @@ services:
     env: node
     region: oregon
     plan: free
-    # The root of the repo is the build context, but the commands will be run from the service directory.
-    # Render's Node.js environment will automatically look for the package.json in this directory.
-    rootDir: ./gallyfans-worker
-    buildCommand: "npm install && npx prisma generate --schema=../prisma/schema.prisma && npm run build"
-    startCommand: "npm start"
+    # The build and start commands are run from the root of the repository.
+    buildCommand: "npm install && npm run build -- --filter=gallyfans-worker"
+    startCommand: "cd gallyfans-worker && npm start"
     healthCheckPath: /health
     envVars:
       - fromGroup: 4Reels-secrets # Use the correct, existing env group
