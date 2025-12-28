@@ -7,7 +7,8 @@ const {
   REDIS_URL,
   WA_PHONE_NUMBER,
   PORT,
-  PUBLICATION_INTERVAL_MINUTES
+  PUBLICATION_INTERVAL_MINUTES,
+  WA_SESSION_NAME,
 } = process.env;
 
 // Validação de variáveis de ambiente essenciais
@@ -35,5 +36,6 @@ export const config = {
   publicationIntervalMs: (parseInt(PUBLICATION_INTERVAL_MINUTES || '15', 10)) * 60 * 1000,
   redis: {
     url: REDIS_URL!,
-  }
+  },
+  baileysAuthPath: WA_SESSION_NAME || 'baileys_auth_temp',
 };

@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import cron from 'node-cron';
 import { runPublicationCycle } from './publisher.js';
-import connectToWhatsApp from './whatsapp/client.js';
+import { whatsappService } from './services/whatsapp.js';
 import logger from './logger.js';
 import { config } from './config.js';
 
@@ -23,20 +23,20 @@ app.get('/health', (c) => {
 
 async function startServerAndScheduler() {
   try {
-    logger.info('[MAIN] Initializing service...');
-    const whatsappClient = await connectToWhatsApp();
-    logger.info('[MAIN] WhatsApp client connection process initiated.');
+    logger.info('[MAIN] Initializing services...');
+    await whatsappService.initialize();
+    logger.info('[MAIN] WhatsApp service initialization process initiated.');
 
     // Agenda a tarefa para rodar no intervalo configurado
     cron.schedule(`*/${config.publicationIntervalMs / 60000} * * * *`, () => {
       logger.info('[CRON] Scheduled publication cycle triggered.');
-      runPublicationCycle(whatsappClient);
+      runPublicationCycle();
     });
     logger.info(`[CRON] Publication cycle scheduled to run every ${config.publicationIntervalMs / 60000} minutes.`);
 
     // Executa um ciclo inicial logo após o boot
     logger.info('[MAIN] Running initial publication cycle...');
-    await runPublicationCycle(whatsappClient);
+    await runPublicationCycle();
 
     // Inicia o servidor HTTP
     serve({
