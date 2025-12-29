@@ -15,63 +15,62 @@ let sock: WASocket | null = null;
  * Initializes the WhatsApp connection using Redis for session storage.
  * This function should only be called once, by the lead instance.
  */
-export async function initializeWhatsApp(): Promise<WASocket> {
-  if (sock) {
-    logger.warn('[WHATSAPP] WhatsApp client already initialized.');
-    return sock;
-  }
-
-  logger.info('[WHATSAPP] Initializing auth state from Redis...');
-  
-  const { state, saveCreds } = await useCustomRedisAuthState(redis);
-  
-  const { version } = await fetchLatestBaileysVersion();
-
-  const newSock = makeWASocket({
-    version,
-    auth: state,
-    printQRInTerminal: false, // Never print QR in production
-    logger,
-    browser: Browsers.ubuntu('Chrome'), // Set a valid browser
-  });
-
-  // Important: Bind to the store's saveCreds method
-  newSock.ev.on('creds.update', saveCreds);
-
-  // Moved pairing code logic outside of connection.update to fix race condition
-  if (!state.creds?.registered && process.env.PAIRING_PHONE_NUMBER) {
-    logger.info('[WHATSAPP] No valid session found. Requesting pairing code...');
-    try {
-      const code = await newSock.requestPairingCode(process.env.PAIRING_PHONE_NUMBER);
-      logger.info(`[WHATSAPP] Your pairing code is: ${code}`);
-    } catch (error) {
-      logger.error({ error }, '[WHATSAPP] Failed to request pairing code.');
-      process.exit(1);
+export function initializeWhatsApp(): Promise<WASocket> {
+  // Return a promise that resolves only when the connection is open
+  return new Promise(async (resolve, reject) => {
+    if (sock) {
+      logger.warn('[WHATSAPP] WhatsApp client already initialized.');
+      return resolve(sock);
     }
-  }
 
-  newSock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect } = update;
+    logger.info('[WHATSAPP] Initializing auth state from Redis...');
+    
+    const { state, saveCreds } = await useCustomRedisAuthState(redis);
+    
+    const { version } = await fetchLatestBaileysVersion();
 
-    if (connection === 'open') {
-      logger.info('[WHATSAPP] WhatsApp connection opened successfully.');
-    } else if (connection === 'close') {
-      const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
-      
-      if (statusCode === DisconnectReason.loggedOut) {
-        logger.fatal('[WHATSAPP] Logged out. Deleting session from Redis and exiting. Please re-provide the PAIRING_PHONE_NUMBER environment variable if needed.');
-        await redis.del('creds');
-        await redis.del('keys');
-        process.exit(1);
-      } else {
-        logger.error(`[WHATSAPP] Connection closed. Reason: ${statusCode}. Triggering process exit to force re-election.`);
-        process.exit(1); // Exit to allow the service to restart and reconnect
+    const newSock = makeWASocket({
+      version,
+      auth: state,
+      printQRInTerminal: false, // Never print QR in production
+      logger,
+      browser: Browsers.ubuntu('Chrome'),
+    });
+
+    // Bind creds update event
+    newSock.ev.on('creds.update', saveCreds);
+
+    // This handler will resolve/reject the promise
+    const connectionUpdateHandler = async (update: any) => {
+      const { connection, lastDisconnect } = update;
+
+      if (connection === 'open') {
+        logger.info('[WHATSAPP] WhatsApp connection opened successfully.');
+        sock = newSock;
+        newSock.ev.removeListener('connection.update', connectionUpdateHandler);
+        resolve(sock);
+      } else if (connection === 'close') {
+        const error = new Boom(lastDisconnect?.error)?.output;
+        logger.error(`[WHATSAPP] Connection closed. Reason: ${error?.statusCode}`);
+        newSock.ev.removeListener('connection.update', connectionUpdateHandler);
+        reject(lastDisconnect?.error);
+      }
+    };
+    
+    newSock.ev.on('connection.update', connectionUpdateHandler);
+
+    // Request pairing code if needed, after setting up listeners
+    if (!state.creds?.registered && process.env.PAIRING_PHONE_NUMBER) {
+      logger.info('[WHATSAPP] No valid session found. Requesting pairing code...');
+      try {
+        const code = await newSock.requestPairingCode(process.env.PAIRING_PHONE_NUMBER);
+        logger.info(`[WHATSAPP] Your pairing code is: ${code}`);
+      } catch (error) {
+        logger.error({ error }, '[WHATSAPP] Failed to request pairing code.');
+        reject(error);
       }
     }
   });
-
-  sock = newSock;
-  return sock;
 }
 
 /**
