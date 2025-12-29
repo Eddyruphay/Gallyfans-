@@ -27,9 +27,9 @@ if (missingEnvVars.length > 0) {
 
 // Configuração unificada
 export const config = {
-  databaseUrl: DATABASE_URL!,
-  redisUrl: REDIS_URL!, // Export the single Redis URL
-  targetChannelId: TARGET_CHANNEL_ID!,
-  port: PORT ? parseInt(PORT, 10) : 3001,
-  publicationIntervalMinutes: parseInt(PUBLICATION_INTERVAL_MINUTES || '15', 10),
+  databaseUrl: process.env.DATABASE_URL!,
+  redisUrl: process.env.REDIS_URL!,
+  targetChannelId: process.env.TARGET_CHANNEL_ID!,
+  port: Number(process.env.PORT || 3000),
+  publicationIntervalMinutes: 1,
 };
