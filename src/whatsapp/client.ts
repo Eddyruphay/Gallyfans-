@@ -38,6 +38,18 @@ export async function initializeWhatsApp(): Promise<WASocket> {
   // Important: Bind to the store's saveCreds method
   newSock.ev.on('creds.update', saveCreds);
 
+  // Moved pairing code logic outside of connection.update to fix race condition
+  if (!state.creds?.registered && process.env.PAIRING_PHONE_NUMBER) {
+    logger.info('[WHATSAPP] No valid session found. Requesting pairing code...');
+    try {
+      const code = await newSock.requestPairingCode(process.env.PAIRING_PHONE_NUMBER);
+      logger.info(`[WHATSAPP] Your pairing code is: ${code}`);
+    } catch (error) {
+      logger.error({ error }, '[WHATSAPP] Failed to request pairing code.');
+      process.exit(1);
+    }
+  }
+
   newSock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect } = update;
 
@@ -47,24 +59,13 @@ export async function initializeWhatsApp(): Promise<WASocket> {
       const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
       
       if (statusCode === DisconnectReason.loggedOut) {
-        logger.fatal('[WHATSAPP] Logged out. Deleting session from Redis and exiting. Please provide the PAIRING_PHONE_NUMBER environment variable to re-authenticate.');
+        logger.fatal('[WHATSAPP] Logged out. Deleting session from Redis and exiting. Please re-provide the PAIRING_PHONE_NUMBER environment variable if needed.');
         await redis.del('creds');
         await redis.del('keys');
         process.exit(1);
       } else {
         logger.error(`[WHATSAPP] Connection closed. Reason: ${statusCode}. Triggering process exit to force re-election.`);
         process.exit(1); // Exit to allow the service to restart and reconnect
-      }
-    }
-
-    // Handle pairing code generation
-    if (!state.creds?.registered && process.env.PAIRING_PHONE_NUMBER) {
-      try {
-        const code = await newSock.requestPairingCode(process.env.PAIRING_PHONE_NUMBER);
-        logger.info(`[WHATSAPP] Your pairing code is: ${code}`);
-      } catch (error) {
-        logger.error({ error }, '[WHATSAPP] Failed to request pairing code.');
-        process.exit(1);
       }
     }
   });
