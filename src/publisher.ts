@@ -1,8 +1,10 @@
-import { prisma } from './db.js';
+import { getPrisma } from './db.js';
 import { type Image, type Prisma } from '@prisma/client';
 import { config } from './config.js';
 import logger from './logger.js';
 import { getWhatsAppClient } from './whatsapp/client.js';
+
+const prisma = getPrisma();
 
 /**
  * Fetches the next available job from the queue, locks it, and updates its status.
