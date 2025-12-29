@@ -2,7 +2,21 @@ import { Redis } from 'ioredis';
 import { config } from './config.js';
 import logger from './logger.js';
 
-const redis = new Redis(config.redisUrl);
+// Use the new explicit connection options
+const redis = new Redis({
+  host: config.redisHost,
+  port: config.redisPort,
+  username: config.redisUsername,
+  password: config.redisPassword,
+  tls: {}, // Required for Render Redis
+  lazyConnect: true,
+});
+
+// Connect to Redis on startup
+redis.connect().catch(err => {
+  logger.fatal({ err }, '[REDIS] Failed to connect to Redis on startup.');
+  process.exit(1);
+});
 
 const INSTANCE_LOCK_KEY = 'gallyfans-worker:instance-lock';
 const LOCK_TIMEOUT_SECONDS = 30; // A 30-second lock timeout
@@ -42,14 +56,18 @@ export function startLockHeartbeat() {
 
   heartbeatInterval = setInterval(async () => {
     if (lockValue) {
-      const currentLockValue = await redis.get(INSTANCE_LOCK_KEY);
-      if (currentLockValue === lockValue) {
-        await redis.expire(INSTANCE_LOCK_KEY, LOCK_TIMEOUT_SECONDS);
-        logger.info(`[REDIS] Heartbeat: Lock refreshed for value: ${lockValue}`);
-      } else {
-        // This instance has lost the lock. It should shut down.
-        logger.fatal('[REDIS] Lost lock. Another instance has taken over. Shutting down...');
-        process.exit(1); // Exit gracefully
+      try {
+        const currentLockValue = await redis.get(INSTANCE_LOCK_KEY);
+        if (currentLockValue === lockValue) {
+          await redis.expire(INSTANCE_LOCK_KEY, LOCK_TIMEOUT_SECONDS);
+          logger.info(`[REDIS] Heartbeat: Lock refreshed for value: ${lockValue}`);
+        } else {
+          // This instance has lost the lock. It should shut down.
+          logger.fatal('[REDIS] Lost lock. Another instance has taken over. Shutting down...');
+          process.exit(1); // Exit gracefully
+        }
+      } catch (error) {
+        logger.error({ err: error }, '[REDIS] Error during heartbeat lock refresh.');
       }
     }
   }, refreshInterval);
@@ -61,10 +79,14 @@ export function startLockHeartbeat() {
 export async function releaseStartupLock() {
   if (lockValue && heartbeatInterval) {
     clearInterval(heartbeatInterval);
-    const currentLockValue = await redis.get(INSTANCE_LOCK_KEY);
-    if (currentLockValue === lockValue) {
-      await redis.del(INSTANCE_LOCK_KEY);
-      logger.info(`[REDIS] Startup lock released for value: ${lockValue}`);
+    try {
+      const currentLockValue = await redis.get(INSTANCE_LOCK_KEY);
+      if (currentLockValue === lockValue) {
+        await redis.del(INSTANCE_LOCK_KEY);
+        logger.info(`[REDIS] Startup lock released for value: ${lockValue}`);
+      }
+    } catch (error) {
+      logger.error({ err: error }, '[REDIS] Error during lock release.');
     }
   }
 }
