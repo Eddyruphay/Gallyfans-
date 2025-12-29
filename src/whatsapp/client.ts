@@ -4,8 +4,8 @@ import makeWASocket, {
   type WASocket,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
-import Redis from 'ioredis';
-import { useCustomRedisAuthState } from './redis-auth-store.js';
+import { Redis } from 'ioredis';
+import { useCustomRedisAuthState } from '../redis-auth-store.js';
 import { config } from '../config.js';
 import logger from '../logger.js';
 

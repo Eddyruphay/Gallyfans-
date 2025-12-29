@@ -1,4 +1,5 @@
 import type { AuthenticationCreds, SignalKeyStore, AuthenticationState } from '@whiskeysockets/baileys';
+import { initAuthCreds } from '@whiskeysockets/baileys';
 import type { Redis } from 'ioredis';
 import logger from './logger.js';
 
@@ -35,24 +36,7 @@ export const useCustomRedisAuthState = async (redis: Redis): Promise<{ state: Au
     creds = JSON.parse(credsJson, reviver);
     logger.info('[AUTH_STORE] Credentials loaded from Redis.');
   } else {
-    creds = {
-      noiseKey: { private: Buffer.alloc(32), public: Buffer.alloc(32) },
-      signedIdentityKey: { private: Buffer.alloc(32), public: Buffer.alloc(32) },
-      signedPreKey: { keyId: 0, keyPair: { private: Buffer.alloc(32), public: Buffer.alloc(32) }, signature: Buffer.alloc(0) },
-      registrationId: 0,
-      advSecretKey: '',
-      nextPreKeyId: 0,
-      firstUnuploadedPreKeyId: 0,
-      accountSyncCounter: 0,
-      accountSettings: { unarchiveChats: false },
-      deviceId: '',
-      phoneId: '',
-      identityId: Buffer.alloc(0),
-      registered: false,
-      backupToken: Buffer.alloc(0),
-      registration: {},
-      pairingCode: undefined,
-    };
+    creds = initAuthCreds(); // Use the official init function
     logger.info('[AUTH_STORE] No credentials found in Redis, starting with new ones.');
   }
 
