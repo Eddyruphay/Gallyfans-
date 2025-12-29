@@ -3,6 +3,7 @@ import makeWASocket, {
   fetchLatestBaileysVersion,
   type WASocket,
   Browsers, // Import Browsers
+  type ConnectionState,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import { redis } from '../redis.js'; // Import the shared redis instance
@@ -41,7 +42,7 @@ export function initializeWhatsApp(): Promise<WASocket> {
     newSock.ev.on('creds.update', saveCreds);
 
     // This handler will resolve/reject the promise
-    const connectionUpdateHandler = async (update: any) => {
+    const connectionUpdateHandler = async (update: Partial<ConnectionState>) => {
       const { connection, lastDisconnect } = update;
 
       if (connection === 'open') {
