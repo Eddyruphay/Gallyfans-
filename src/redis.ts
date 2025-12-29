@@ -3,7 +3,7 @@ import { config } from './config.js';
 import logger from './logger.js';
 
 // Use the single REDIS_URL for connection
-const redis = new Redis(config.redisUrl, {
+export const redis = new Redis(config.redisUrl, {
   tls: {}, // Required for Render Redis
   lazyConnect: true,
 });
