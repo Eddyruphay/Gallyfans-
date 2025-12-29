@@ -1,16 +1,19 @@
 import makeWASocket, {
   DisconnectReason,
-  useMultiFileAuthState,
+  fetchLatestBaileysVersion,
   type WASocket,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
+import Redis from 'ioredis';
+import pkg from 'baileys-redis-auth';
+const { RedisStore } = pkg;
 import { config } from '../config.js';
 import logger from '../logger.js';
 
 let sock: WASocket | null = null;
 
 /**
- * Initializes the WhatsApp connection.
+ * Initializes the WhatsApp connection using Redis for session storage.
  * This function should only be called once, by the lead instance.
  */
 export async function initializeWhatsApp(): Promise<WASocket> {
@@ -19,16 +22,22 @@ export async function initializeWhatsApp(): Promise<WASocket> {
     return sock;
   }
 
-  logger.info(`[WHATSAPP] Initializing auth state from path: ${config.waSessionPath}`);
-  const { state, saveCreds } = await useMultiFileAuthState(config.waSessionPath);
+  logger.info('[WHATSAPP] Initializing auth state from Redis...');
+  const redis = new Redis(config.redisUrl);
+  const store = new RedisStore(redis);
+
+  const { state, saveCreds } = await store.read();
+  const { version } = await fetchLatestBaileysVersion();
 
   const newSock = makeWASocket({
+    version,
     auth: state,
-    printQRInTerminal: true,
+    printQRInTerminal: false, // QR code should not be needed in production
     logger,
     browser: ['Gallyfans', 'Chrome', '1.0.0'],
   });
 
+  // Important: Bind to the store's saveCreds method
   newSock.ev.on('creds.update', saveCreds);
 
   newSock.ev.on('connection.update', (update) => {
@@ -45,13 +54,12 @@ export async function initializeWhatsApp(): Promise<WASocket> {
         logger.fatal('[WHATSAPP] Triggering process exit to force re-election.');
         process.exit(1);
       } else {
-        logger.fatal('[WHATSAPP] Not reconnecting, logged out.');
-        // In case of loggedOut, we might need a manual QR scan.
-        // For now, we exit and let the admin handle it.
+        logger.fatal('[WHATSAPP] Not reconnecting, logged out. Manual authentication required.');
+        // In case of loggedOut, a manual re-authentication (e.g., running a local script) is needed.
         process.exit(1);
       }
     } else if (connection === 'open') {
-      logger.info('[WHATSAPP] WhatsApp connection opened.');
+      logger.info('[WHATSAPP] WhatsApp connection opened successfully.');
     }
   });
 

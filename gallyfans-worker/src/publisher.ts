@@ -1,4 +1,4 @@
-import { PrismaClient, type Image } from '@prisma/client';
+import { PrismaClient, type Image, type Prisma } from '@prisma/client';
 import { config } from './config.js';
 import logger from './logger.js';
 import { getWhatsAppClient } from './whatsapp/client.js';
@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
  */
 async function getNextJob() {
   try {
-    const job = await prisma.$transaction(async (tx) => {
+    const job = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const nextJobs = await tx.$queryRaw<any[]>`
         UPDATE "published_items"
         SET status = 'processing', "processing_started_at" = NOW()

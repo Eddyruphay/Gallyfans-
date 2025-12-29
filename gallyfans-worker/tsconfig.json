@@ -9,7 +9,7 @@
     // See also https://aka.ms/tsconfig/module
     "module": "esnext",
     "target": "es2022",
-    "types": [],
+    // "types": [], // Removing this to allow default type discovery
     // For nodejs:
     // "lib": ["esnext"],
     // "types": ["node"],
@@ -43,6 +43,6 @@
 
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "moduleResolution": "node10",
+    "moduleResolution": "nodenext",
   }
 }
