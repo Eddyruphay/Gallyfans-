@@ -3,7 +3,13 @@ import { config } from './config.js';
 import logger from './logger.js';
 import { getWhatsAppClient } from './whatsapp/client.js';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: config.databaseUrl,
+    },
+  },
+});
 
 /**
  * Fetches the next available job from the queue, locks it, and updates its status.
