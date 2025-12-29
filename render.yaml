@@ -8,13 +8,11 @@ services:
     region: oregon
     plan: free
     # The build and start commands are run from the root of the repository.
-    buildCommand: "npm install && npx prisma generate --schema=prisma/schema.prisma && npx tsc -p gallyfans-worker/tsconfig.json"
-    startCommand: "node gallyfans-worker/dist/index.js"
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm start"
     healthCheckPath: /health
     envVars:
-      - key: REDIS_URL
-        value: redis://red-d58el3je5dus73dsiieg:6379
-      - fromGroup: 4Reels-secrets # Use the correct, existing env group
+      - fromGroup: 4Reels-secrets # Assumes the new REDIS_* vars are in this group
 
   # The Redis instance used for distributed locking.
   - type: redis
