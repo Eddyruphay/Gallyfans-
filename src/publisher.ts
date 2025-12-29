@@ -4,11 +4,7 @@ import logger from './logger.js';
 import { getWhatsAppClient } from './whatsapp/client.js';
 
 const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: config.databaseUrl,
-    },
-  },
+  datasourceUrl: config.databaseUrl,
 });
 
 /**
