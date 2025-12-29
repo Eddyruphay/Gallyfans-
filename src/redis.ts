@@ -2,12 +2,8 @@ import { Redis } from 'ioredis';
 import { config } from './config.js';
 import logger from './logger.js';
 
-// Use the new explicit connection options
-const redis = new Redis({
-  host: config.redisHost,
-  port: config.redisPort,
-  username: config.redisUsername,
-  password: config.redisPassword,
+// Use the single REDIS_URL for connection
+const redis = new Redis(config.redisUrl, {
   tls: {}, // Required for Render Redis
   lazyConnect: true,
 });
