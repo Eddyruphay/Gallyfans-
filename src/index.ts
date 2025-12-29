@@ -1,3 +1,8 @@
+console.log('--- DEBUGGING RENDER ENV ---');
+console.log('DATABASE_URL:', process.env.DATABASE_URL);
+console.log('REDIS_URL:', process.env.REDIS_URL);
+console.log('--- END DEBUGGING ---');
+
 import { config } from './config.js';
 import type { AddressInfo } from 'node:net';
 import { Hono } from 'hono';
