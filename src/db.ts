@@ -8,7 +8,13 @@ export function getPrisma(): PrismaClient {
       // This will crash the app with a clear error if the env var is missing
       throw new Error('DATABASE_URL not found in environment variables!');
     }
-    prisma = new PrismaClient();
+    prisma = new PrismaClient({
+      datasources: {
+        db: {
+          url: process.env.DATABASE_URL,
+        },
+      },
+    });
   }
   return prisma;
 }
