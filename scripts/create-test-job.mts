@@ -1,7 +1,13 @@
 // scripts/create-test-job.mts
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
+});
 
 /**
  * Creates a new job in the publishing queue for testing purposes.
