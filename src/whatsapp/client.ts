@@ -4,9 +4,8 @@ import makeWASocket, {
   type WASocket,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
-import { Redis } from 'ioredis';
+import { redis } from '../redis.js'; // Import the shared redis instance
 import { useCustomRedisAuthState } from '../redis-auth-store.js';
-import { config } from '../config.js';
 import logger from '../logger.js';
 
 let sock: WASocket | null = null;
@@ -23,20 +22,8 @@ export async function initializeWhatsApp(): Promise<WASocket> {
 
   logger.info('[WHATSAPP] Initializing auth state from Redis...');
   
-  // Correct, explicit Redis connection for Render
-  const redis = new Redis({
-    host: config.redisHost,
-    port: config.redisPort,
-    username: config.redisUsername,
-    password: config.redisPassword,
-    tls: {}, // Required for Render Redis
-    lazyConnect: true,
-  });
-
-  await redis.connect();
-  logger.info('[WHATSAPP] Redis connected.');
-
-  // Use the new custom auth state
+  // The shared redis instance is already connected on startup.
+  // We can use it directly.
   const { state, saveCreds } = await useCustomRedisAuthState(redis);
   
   const { version } = await fetchLatestBaileysVersion();
