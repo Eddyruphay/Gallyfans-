@@ -2,6 +2,7 @@ import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
   type WASocket,
+  Browsers, // Import Browsers
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import { redis } from '../redis.js'; // Import the shared redis instance
@@ -22,48 +23,16 @@ export async function initializeWhatsApp(): Promise<WASocket> {
 
   logger.info('[WHATSAPP] Initializing auth state from Redis...');
   
-  // The shared redis instance is already connected on startup.
-  // We can use it directly.
   const { state, saveCreds } = await useCustomRedisAuthState(redis);
   
   const { version } = await fetchLatestBaileysVersion();
 
-  const usePairingCode = !state.creds?.registered && !!process.env.PAIRING_PHONE_NUMBER;
-
-  if (usePairingCode) {
-    logger.info('[WHATSAPP] No session found. Attempting to pair with phone number...');
-  }
-
   const newSock = makeWASocket({
     version,
     auth: state,
-    printQRInTerminal: !usePairingCode, // Disable QR code if using pairing code
+    printQRInTerminal: false, // Never print QR in production
     logger,
-    browser: ['Gallyfans', 'Chrome', '1.0.0'],
-    shouldIgnoreJid: jid => jid?.includes('@broadcast'),
-    generateHighQualityLinkPreview: true,
-    patchMessageBeforeSending: (message) => {
-        const requiresPatch = !!(
-            message.buttonsMessage 
-            || message.templateMessage
-            || message.listMessage
-        );
-        if (requiresPatch) {
-            message = {
-                viewOnceMessage: {
-                    message: {
-                        messageContextInfo: {
-                            deviceListMetadataVersion: 2,
-                            deviceListMetadata: {},
-                        },
-                        ...message,
-                    },
-                },
-            };
-        }
-        return message;
-    },
-    ...(usePairingCode && { pairingCode: process.env.PAIRING_PHONE_NUMBER }),
+    browser: Browsers.ubuntu('Chrome'), // Set a valid browser
   });
 
   // Important: Bind to the store's saveCreds method
@@ -79,13 +48,23 @@ export async function initializeWhatsApp(): Promise<WASocket> {
       
       if (statusCode === DisconnectReason.loggedOut) {
         logger.fatal('[WHATSAPP] Logged out. Deleting session from Redis and exiting. Please provide the PAIRING_PHONE_NUMBER environment variable to re-authenticate.');
-        // Clear the invalid session from Redis
         await redis.del('creds');
         await redis.del('keys');
         process.exit(1);
       } else {
         logger.error(`[WHATSAPP] Connection closed. Reason: ${statusCode}. Triggering process exit to force re-election.`);
         process.exit(1); // Exit to allow the service to restart and reconnect
+      }
+    }
+
+    // Handle pairing code generation
+    if (!state.creds?.registered && process.env.PAIRING_PHONE_NUMBER) {
+      try {
+        const code = await newSock.requestPairingCode(process.env.PAIRING_PHONE_NUMBER);
+        logger.info(`[WHATSAPP] Your pairing code is: ${code}`);
+      } catch (error) {
+        logger.error({ error }, '[WHATSAPP] Failed to request pairing code.');
+        process.exit(1);
       }
     }
   });
