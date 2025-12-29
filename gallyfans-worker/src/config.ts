@@ -3,9 +3,11 @@ import 'dotenv/config';
 
 const {
   DATABASE_URL,
-  REDIS_URL,
+  REDIS_HOST,
+  REDIS_PORT,
+  REDIS_USERNAME,
+  REDIS_PASSWORD,
   TARGET_CHANNEL_ID,
-  WA_SESSION_PATH,
   PORT,
   PUBLICATION_INTERVAL_MINUTES,
 } = process.env;
@@ -13,7 +15,9 @@ const {
 // Validação de variáveis de ambiente essenciais
 const requiredEnvVars = {
   DATABASE_URL,
-  REDIS_URL,
+  REDIS_HOST,
+  REDIS_PORT,
+  REDIS_PASSWORD, // Username is optional, 'default' will be used if not provided
   TARGET_CHANNEL_ID,
 };
 
@@ -29,9 +33,11 @@ if (missingEnvVars.length > 0) {
 // Configuração unificada
 export const config = {
   databaseUrl: DATABASE_URL!,
-  redisUrl: REDIS_URL!,
+  redisHost: REDIS_HOST!,
+  redisPort: parseInt(REDIS_PORT!, 10),
+  redisUsername: REDIS_USERNAME || 'default', // Default to 'default' as we discovered
+  redisPassword: REDIS_PASSWORD!,
   targetChannelId: TARGET_CHANNEL_ID!,
-  waSessionPath: WA_SESSION_PATH || 'baileys_auth_temp',
   port: PORT ? parseInt(PORT, 10) : 3001,
   publicationIntervalMinutes: parseInt(PUBLICATION_INTERVAL_MINUTES || '15', 10),
 };

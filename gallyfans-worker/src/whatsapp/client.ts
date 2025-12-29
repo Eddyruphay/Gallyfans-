@@ -5,8 +5,7 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import Redis from 'ioredis';
-import pkg from 'baileys-redis-auth';
-const { RedisStore } = pkg;
+import redisAuthState from 'baileys-redis-auth';
 import { config } from '../config.js';
 import logger from '../logger.js';
 
@@ -23,16 +22,29 @@ export async function initializeWhatsApp(): Promise<WASocket> {
   }
 
   logger.info('[WHATSAPP] Initializing auth state from Redis...');
-  const redis = new Redis(config.redisUrl);
-  const store = new RedisStore(redis);
+  
+  // Correct, explicit Redis connection for Render
+  const redis = new Redis({
+    host: config.redisHost,
+    port: config.redisPort,
+    username: config.redisUsername,
+    password: config.redisPassword,
+    tls: {}, // Required for Render Redis
+    lazyConnect: true,
+  });
 
-  const { state, saveCreds } = await store.read();
+  await redis.connect();
+  logger.info('[WHATSAPP] Redis connected.');
+
+  // Use the correct factory function for baileys-redis-auth
+  const { state, saveCreds } = await redisAuthState(redis);
+  
   const { version } = await fetchLatestBaileysVersion();
 
   const newSock = makeWASocket({
     version,
     auth: state,
-    printQRInTerminal: false, // QR code should not be needed in production
+    printQRInTerminal: false,
     logger,
     browser: ['Gallyfans', 'Chrome', '1.0.0'],
   });
@@ -49,13 +61,10 @@ export async function initializeWhatsApp(): Promise<WASocket> {
       logger.error(`[WHATSAPP] Connection closed. Reason: ${statusCode}. Reconnecting: ${shouldReconnect}`);
       
       if (shouldReconnect) {
-        // The process will be restarted by the environment (e.g., Render)
-        // which will re-trigger the leader election.
         logger.fatal('[WHATSAPP] Triggering process exit to force re-election.');
         process.exit(1);
       } else {
         logger.fatal('[WHATSAPP] Not reconnecting, logged out. Manual authentication required.');
-        // In case of loggedOut, a manual re-authentication (e.g., running a local script) is needed.
         process.exit(1);
       }
     } else if (connection === 'open') {

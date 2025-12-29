@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "build": "prisma generate --schema=../prisma/schema.prisma && tsc",
+    "build": "prisma generate --schema=../prisma/schema.prisma --output=../node_modules/@prisma/client && tsc",
     "start": "node dist/index.js"
   },
   "dependencies": {
