@@ -1,3 +1,4 @@
+import { config } from './config.js';
 import type { AddressInfo } from 'node:net';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
@@ -6,7 +7,6 @@ import { runPublicationCycle } from './publisher.js';
 import { initializeWhatsApp } from './whatsapp/client.js';
 import { acquireStartupLock, releaseStartupLock, startLockHeartbeat } from './redis.js';
 import logger from './logger.js';
-import { config } from './config.js';
 
 const app = new Hono();
 

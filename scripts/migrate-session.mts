@@ -1,17 +1,18 @@
 import { useMultiFileAuthState } from '@whiskeysockets/baileys';
-import redisAuthState from 'baileys-redis-auth';
-import Redis from 'ioredis';
+import { useCustomRedisAuthState } from '../src/redis-auth-store.js';
+import { Redis } from 'ioredis';
 import pino from 'pino';
+import 'dotenv/config';
 
 const logger = pino({ level: 'info' });
-
-const REDIS_PASSWORD = process.env.REDIS_PASSWORD;
 
 async function migrateSession() {
   logger.info('Iniciando migração de sessão de arquivos para Redis...');
 
-  if (!REDIS_PASSWORD) {
-    logger.fatal('REDIS_PASSWORD não definida. Abortando.');
+  const { REDIS_URL } = process.env;
+
+  if (!REDIS_URL) {
+    logger.fatal('REDIS_URL não definida. Abortando.');
     return;
   }
 
@@ -26,30 +27,22 @@ async function migrateSession() {
 
   logger.info('Sessão local lida com sucesso.');
 
-  // 2️⃣ Conectar Redis (forma correta para Render)
+  // 2️⃣ Conectar Redis
   logger.info('Conectando ao Redis...');
-
-  const redis = new Redis({
-    host: 'oregon-keyvalue.render.com',
-    port: 6379,
-    username: 'default', // O username padrão do Redis 6+ com ACL
-    password: process.env.REDIS_PASSWORD,
-    tls: {},
-    lazyConnect: true
-  });
-
-  await redis.connect();
+  const redis = new Redis(REDIS_URL, { tls: {} });
   logger.info('Redis conectado.');
 
-  // 3️⃣ Criar auth state Redis
-  const { state: redisState, saveCreds } = await redisAuthState(redis);
+  // 3️⃣ Usar o mesmo auth store da aplicação
+  const { state: redisState, saveCreds: saveRemoteCreds } = await useCustomRedisAuthState(redis);
 
   // 4️⃣ Migrar dados
-  logger.info('Copiando credenciais da sessão local para a sessão Redis...');
+  logger.info('Copiando credenciais e chaves da sessão local para a sessão Redis...');
   redisState.creds = fileState.creds;
+  // O objeto `keys` do useMultiFileAuthState é complexo, mas o nosso useCustomRedisAuthState
+  // espera um objeto simples. A forma mais segura é pegar o objeto `keys` inteiro.
   redisState.keys = fileState.keys;
 
-  await saveCreds();
+  await saveRemoteCreds();
 
   logger.info('🎉 Sessão migrada com sucesso para o Redis!');
   await redis.quit();
