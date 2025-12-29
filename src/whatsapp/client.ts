@@ -28,34 +28,65 @@ export async function initializeWhatsApp(): Promise<WASocket> {
   
   const { version } = await fetchLatestBaileysVersion();
 
+  const usePairingCode = !state.creds?.registered && !!process.env.PAIRING_PHONE_NUMBER;
+
+  if (usePairingCode) {
+    logger.info('[WHATSAPP] No session found. Attempting to pair with phone number...');
+  }
+
   const newSock = makeWASocket({
     version,
     auth: state,
-    printQRInTerminal: false,
+    printQRInTerminal: !usePairingCode, // Disable QR code if using pairing code
     logger,
     browser: ['Gallyfans', 'Chrome', '1.0.0'],
+    shouldIgnoreJid: jid => jid?.includes('@broadcast'),
+    generateHighQualityLinkPreview: true,
+    patchMessageBeforeSending: (message) => {
+        const requiresPatch = !!(
+            message.buttonsMessage 
+            || message.templateMessage
+            || message.listMessage
+        );
+        if (requiresPatch) {
+            message = {
+                viewOnceMessage: {
+                    message: {
+                        messageContextInfo: {
+                            deviceListMetadataVersion: 2,
+                            deviceListMetadata: {},
+                        },
+                        ...message,
+                    },
+                },
+            };
+        }
+        return message;
+    },
+    ...(usePairingCode && { pairingCode: process.env.PAIRING_PHONE_NUMBER }),
   });
 
   // Important: Bind to the store's saveCreds method
   newSock.ev.on('creds.update', saveCreds);
 
-  newSock.ev.on('connection.update', (update) => {
+  newSock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect } = update;
-    if (connection === 'close') {
+
+    if (connection === 'open') {
+      logger.info('[WHATSAPP] WhatsApp connection opened successfully.');
+    } else if (connection === 'close') {
       const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
       
-      logger.error(`[WHATSAPP] Connection closed. Reason: ${statusCode}. Reconnecting: ${shouldReconnect}`);
-      
-      if (shouldReconnect) {
-        logger.fatal('[WHATSAPP] Triggering process exit to force re-election.');
+      if (statusCode === DisconnectReason.loggedOut) {
+        logger.fatal('[WHATSAPP] Logged out. Deleting session from Redis and exiting. Please provide the PAIRING_PHONE_NUMBER environment variable to re-authenticate.');
+        // Clear the invalid session from Redis
+        await redis.del('creds');
+        await redis.del('keys');
         process.exit(1);
       } else {
-        logger.fatal('[WHATSAPP] Not reconnecting, logged out. Manual authentication required.');
-        process.exit(1);
+        logger.error(`[WHATSAPP] Connection closed. Reason: ${statusCode}. Triggering process exit to force re-election.`);
+        process.exit(1); // Exit to allow the service to restart and reconnect
       }
-    } else if (connection === 'open') {
-      logger.info('[WHATSAPP] WhatsApp connection opened successfully.');
     }
   });
 
