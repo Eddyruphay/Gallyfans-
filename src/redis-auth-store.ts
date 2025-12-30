@@ -76,3 +76,13 @@ export const useCustomRedisAuthState = async (redis: Redis): Promise<{ state: Au
     saveCreds,
   };
 };
+
+/**
+ * Clears the authentication state from Redis.
+ */
+export const clearAuthState = async (redis: Redis): Promise<void> => {
+  logger.info('[AUTH_STORE] Clearing authentication state from Redis...');
+  await redis.del(credsKey);
+  await redis.del(keysKey);
+  logger.info('[AUTH_STORE] Authentication state cleared from Redis successfully.');
+};
