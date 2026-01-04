@@ -170,3 +170,5 @@ _archived_/
 # Allow test session for GH Action
 !/baileys_auth_hello/
 !/baileys_auth_hello/**/*.json
+
+!/tsconfig.scripts.json
