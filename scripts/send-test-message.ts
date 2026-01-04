@@ -5,17 +5,14 @@ import makeWASocket,
   Browsers,
   DisconnectReason,
 } from '@whiskeysockets/baileys';
-import pino from 'pino';
 import { Boom } from '@hapi/boom';
 
 // --- CONFIGURAÇÕES ---
 const GROUP_ID = '120363404510855649@g.us';
-const MESSAGE = 'Hello Gally (Test 2)';
+const MESSAGE = 'Hello Gally (Test from GitHub Actions)';
 const AUTH_FOLDER = 'baileys_auth_hello';
-const SEND_DELAY_SECONDS = 3;
+const SEND_DELAY_SECONDS = 5;
 // -------------------
-
-const logger = pino({ level: 'silent' });
 
 async function sendTestMessage() {
   console.log(`Iniciando cliente Baileys para enviar mensagem de teste...`);
@@ -32,7 +29,6 @@ async function sendTestMessage() {
   const sock = makeWASocket({
     version,
     auth: state,
-    logger,
     printQRInTerminal: false,
     browser: Browsers.ubuntu('Chrome'),
   });
@@ -61,13 +57,8 @@ async function sendTestMessage() {
       }
     } else if (connection === 'close') {
       const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
-      if (statusCode !== DisconnectReason.loggedOut) {
-        console.log('Conexão perdida, tentando reconectar...');
-        sendTestMessage();
-      } else {
-        console.log('Conexão encerrada permanentemente (logout).');
-        process.exit(1);
-      }
+      console.error(`🔌 Conexão fechada com código: ${statusCode}. Encerrando.`);
+      process.exit(1);
     }
   });
 }
