@@ -23,4 +23,4 @@ jobs:
         run: npm install
 
       - name: Run pairing script
-        run: npx ts-node scripts/generate-pairing-code.mts ${{ github.event.inputs.phone_number }}
+        run: npx ts-node scripts/generate-pairing-code.ts ${{ github.event.inputs.phone_number }}
