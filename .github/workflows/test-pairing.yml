@@ -23,7 +23,7 @@ jobs:
         run: npm install
 
       - name: Compile TypeScript
-        run: npx tsc
+        run: npx tsc scripts/generate-pairing-code.ts
 
       - name: Run pairing script
         run: node dist/scripts/generate-pairing-code.js ${{ github.event.inputs.phone_number }}
