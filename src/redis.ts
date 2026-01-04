@@ -5,13 +5,13 @@ import logger from './logger.js';
 // Use the single REDIS_URL for connection
 export const redis = new Redis(config.redisUrl, {
   tls: {}, // Required for Render Redis
-  lazyConnect: true,
+  connectTimeout: 30000, // 30 seconds
+  maxRetriesPerRequest: 5, // Retry commands on connection errors
 });
 
-// Connect to Redis on startup
-redis.connect().catch(err => {
-  logger.fatal({ err }, '[REDIS] Failed to connect to Redis on startup.');
-  process.exit(1);
+// Listen for connection errors
+redis.on('error', err => {
+  logger.error({ err }, '[REDIS] Redis connection error');
 });
 
 const INSTANCE_LOCK_KEY = 'gallyfans-worker:instance-lock';

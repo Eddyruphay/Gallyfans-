@@ -1,54 +1,62 @@
-import { useMultiFileAuthState } from '@whiskeysockets/baileys';
-import { useCustomRedisAuthState } from '../src/redis-auth-store.js';
-import { Redis } from 'ioredis';
-import pino from 'pino';
 import 'dotenv/config';
+import { redis } from '../src/redis.js';
+import { useCustomRedisAuthState } from '../src/redis-auth-store.js';
+import logger from '../src/logger.js';
+import { promises as fs } from 'fs';
+import path from 'path';
 
-const logger = pino({ level: 'info' });
+const LOCAL_AUTH_DIR = 'baileys_auth_local';
 
+/**
+ * This script migrates a local Baileys session (folder) to Redis.
+ */
 async function migrateSession() {
-  logger.info('Iniciando migração de sessão de arquivos para Redis...');
+  logger.info('================================================');
+  logger.info('Iniciando Migração de Sessão Local para Redis');
+  logger.info(`Lendo credenciais da pasta: ${LOCAL_AUTH_DIR}`);
+  logger.info('================================================');
 
-  const { REDIS_URL } = process.env;
+  try {
+    // 1. Verificar se a pasta de autenticação local existe
+    await fs.access(LOCAL_AUTH_DIR);
 
-  if (!REDIS_URL) {
-    logger.fatal('REDIS_URL não definida. Abortando.');
-    return;
+    // 2. Conectar ao Redis e preparar o hook de autenticação
+    const { state: redisState, saveCreds: saveCredsToRedis } = await useCustomRedisAuthState(redis);
+
+    if (redisState.creds.registered) {
+      logger.warn('Uma sessão já existe no Redis. A migração irá sobrescrevê-la.');
+      logger.warn('Pressione Ctrl+C em 5 segundos para cancelar...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+
+    // 3. Ler as credenciais da pasta local
+    // O useMultiFileAuthState armazena tudo em um único objeto `creds`
+    // que é salvo em `creds.json`.
+    const credsFilePath = path.join(LOCAL_AUTH_DIR, 'creds.json');
+    const localCredsRaw = await fs.readFile(credsFilePath, { encoding: 'utf-8' });
+    const localCreds = JSON.parse(localCredsRaw);
+
+    // 4. Salvar as credenciais no Redis
+    logger.info('Credenciais locais lidas com sucesso. Salvando no Redis...');
+    await saveCredsToRedis(localCreds);
+
+    logger.info('🎉 Migração concluída com sucesso!');
+    logger.info('A sessão local foi copiada para o Redis.');
+
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      logger.fatal(`A pasta de autenticação local '${LOCAL_AUTH_DIR}' não foi encontrada.`);
+      logger.fatal('Gere uma sessão local primeiro com "generate-local-session.mts".');
+    } else {
+      logger.fatal({ err: error }, 'Ocorreu um erro durante a migração.');
+    }
+  } finally {
+    await redis.quit();
+    logger.info('Conexão com o Redis fechada.');
   }
-
-  // 1️⃣ Ler sessão local
-  logger.info('Lendo sessão da pasta "baileys_auth_temp"...');
-  const { state: fileState } = await useMultiFileAuthState('baileys_auth_temp');
-
-  if (!fileState.creds?.registered) {
-    logger.fatal('Sessão local não registrada. Autentique primeiro.');
-    return;
-  }
-
-  logger.info('Sessão local lida com sucesso.');
-
-  // 2️⃣ Conectar Redis
-  logger.info('Conectando ao Redis...');
-  const redis = new Redis(REDIS_URL, { tls: {} });
-  logger.info('Redis conectado.');
-
-  // 3️⃣ Usar o mesmo auth store da aplicação
-  const { state: redisState, saveCreds: saveRemoteCreds } = await useCustomRedisAuthState(redis);
-
-  // 4️⃣ Migrar dados
-  logger.info('Copiando credenciais e chaves da sessão local para a sessão Redis...');
-  redisState.creds = fileState.creds;
-  // O objeto `keys` do useMultiFileAuthState é complexo, mas o nosso useCustomRedisAuthState
-  // espera um objeto simples. A forma mais segura é pegar o objeto `keys` inteiro.
-  redisState.keys = fileState.keys;
-
-  await saveRemoteCreds();
-
-  logger.info('🎉 Sessão migrada com sucesso para o Redis!');
-  await redis.quit();
 }
 
 migrateSession().catch(err => {
-  logger.error({ err }, 'Erro fatal na migração');
+  logger.fatal({ err }, 'Ocorreu um erro fatal no script de migração.');
   process.exit(1);
 });

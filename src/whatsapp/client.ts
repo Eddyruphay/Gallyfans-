@@ -57,7 +57,7 @@ connectToWhatsApp = (): Promise<WASocket> => {
 
     logger.info(`[WHATSAPP] Initializing connection (Attempt ${reconnectAttempts})...`);
 
-    let newSock: WASocket;
+    let newSock: WASocket | null = null;
 
     const connectionPromise = new Promise<WASocket>(async (innerResolve, innerReject) => {
       try {
@@ -75,7 +75,7 @@ connectToWhatsApp = (): Promise<WASocket> => {
         });
 
         if (sock) {
-          sock.ev.removeAllListeners();
+          sock.ev.removeAllListeners('connection.update');
         }
         
         newSock.ev.on('creds.update', saveCreds);
@@ -88,7 +88,7 @@ connectToWhatsApp = (): Promise<WASocket> => {
         }
 
         const waitForOpen = (update: Partial<ConnectionState>) => {
-          const cleanup = () => newSock.ev.removeListener('connection.update', waitForOpen);
+          const cleanup = () => newSock.ev.off('connection.update', waitForOpen);
           
           if (update.connection === 'open') {
             cleanup();
