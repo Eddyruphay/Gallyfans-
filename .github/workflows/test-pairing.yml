@@ -22,5 +22,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Compile TypeScript
+        run: npx tsc
+
       - name: Run pairing script
-        run: npx ts-node scripts/generate-pairing-code.ts ${{ github.event.inputs.phone_number }}
+        run: node dist/scripts/generate-pairing-code.js ${{ github.event.inputs.phone_number }}
