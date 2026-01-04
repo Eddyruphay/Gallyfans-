@@ -9,9 +9,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          # We need to checkout the submodules as well, which contain the session data
-          submodules: 'recursive'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -22,7 +19,7 @@ jobs:
         run: npm install
 
       - name: Compile test script
-        run: npx tsc scripts/send-test-message.ts
+        run: npx tsc --project tsconfig.scripts.json
 
       - name: Run Hello Gally script
         run: node dist/scripts/send-test-message.js
