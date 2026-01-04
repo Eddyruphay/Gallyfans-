@@ -166,3 +166,7 @@ publisher-worker/node_modules/
 # Ignored project folders
 api/
 _archived_/
+
+# Allow test session for GH Action
+!/baileys_auth_hello/
+!/baileys_auth_hello/**/*.json
