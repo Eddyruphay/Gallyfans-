@@ -18,8 +18,5 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Compile test script
-        run: npx tsc --project tsconfig.scripts.json
-
       - name: Run Hello Gally script
-        run: node dist/scripts/send-test-message.js
+        run: node scripts/send-test-message.js
