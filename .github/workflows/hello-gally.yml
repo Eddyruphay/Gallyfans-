@@ -18,5 +18,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Build project
+        run: npm run build
+
       - name: Run Hello Gally script
         run: node scripts/send-test-message.js

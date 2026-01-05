@@ -1,29 +1,24 @@
 // @ts-nocheck
-// Manually converted to JS to bypass TSC errors
 import makeWASocket, {
-  useMultiFileAuthState,
   fetchLatestBaileysVersion,
   Browsers,
   DisconnectReason,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
+import { redis } from '../dist/redis.js';
+import { useCustomRedisAuthState } from '../dist/redis-auth-store.js';
+
 
 // --- CONFIGURAÇÕES ---
 const GROUP_ID = '120363404510855649@g.us';
-const MESSAGE = 'Hello Gally (Test from GitHub Actions - JS ESCAPE HATCH)';
-const AUTH_FOLDER = 'baileys_auth_hello';
+const MESSAGE = 'Hello Gally (Test from GitHub Actions - Redis Auth)';
 const SEND_DELAY_SECONDS = 5;
 // -------------------
 
 async function sendTestMessage() {
   console.log(`Iniciando cliente Baileys para enviar mensagem de teste...`);
   
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
-  
-  if (!state.creds.registered) {
-    console.error(`ERRO: Sessão de autenticação não encontrada em '${AUTH_FOLDER}'.`);
-    process.exit(1);
-  }
+  const { state, saveCreds } = await useCustomRedisAuthState(redis);
 
   const { version } = await fetchLatestBaileysVersion();
 
@@ -58,8 +53,9 @@ async function sendTestMessage() {
       }
     } else if (connection === 'close') {
       const statusCode = (lastDisconnect?.error)?.output?.statusCode;
-      console.error(`🔌 Conexão fechada com código: ${statusCode}. Encerrando.`);
-      process.exit(1);
+      console.log(`🔌 Conexão fechada com código: ${statusCode}.`);
+      // Não saia com erro aqui, pois o fechamento pode ser intencional.
+      // O process.exit(0) no bloco finally cuidará do encerramento.
     }
   });
 }
