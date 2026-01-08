@@ -14,6 +14,23 @@ services:
     envVars:
       - fromGroup: 4Reels-secrets # Assumes the new REDIS_* vars are in this group
 
+  # The new whatsapp-sender microservice
+  - type: web
+    name: whatsapp-sender
+    env: node
+    region: oregon
+    plan: free
+    rootDir: ./whatsapp-sender
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm run start"
+    healthCheckPath: /
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: session-memory
+      - fromGroup: 4Reels-secrets # For API_KEY and WA_SESSION_CREDS_JSON
+
   # The Redis instance used for distributed locking.
   - type: redis
     name: session-memory

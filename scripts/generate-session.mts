@@ -1,97 +1,84 @@
-import 'dotenv/config';
 import makeWASocket, {
+  useMultiFileAuthState,
   fetchLatestBaileysVersion,
-  Browsers,
   DisconnectReason,
-  makeInMemoryStore,
 } from '@whiskeysockets/baileys';
+import pino from 'pino';
 import { Boom } from '@hapi/boom';
-import { redis } from '../src/redis.js';
-import { useCustomRedisAuthState } from '../src/redis-auth-store.js';
-import logger from '../src/logger.js';
 import { exit } from 'process';
 
+const SESSION_FOLDER = './gallyfans_session';
+const logger = pino({ level: 'info' });
+
 /**
- * This script is a dedicated tool for generating a WhatsApp session via pairing code.
- * It connects, requests the code, prints it, and waits for the connection to open,
- * then saves the credentials to Redis and exits.
+ * Este script gera e valida uma sessão local permanente na pasta 'gallyfans_session'.
+ * 1. Se a sessão não existir, ele pede um código de pareamento.
+ * 2. Se a sessão já existir, ele conecta para validar e depois fecha.
  */
-async function generateSession() {
-  const phoneNumber = process.env.PAIRING_PHONE_NUMBER;
+async function generateOrValidateSession() {
+  const phoneNumber = process.argv[2];
   if (!phoneNumber) {
-    logger.fatal('A variável de ambiente PAIRING_PHONE_NUMBER não está definida.');
-    throw new Error('PAIRING_PHONE_NUMBER is not set.');
+    logger.error('Erro: Forneça o seu número de telefone como argumento.');
+    logger.info('Uso: npx tsx scripts/generate-session.mts <seu_numero_de_telefone>');
+    exit(1);
   }
 
-  logger.info(`Iniciando processo de pareamento para o número: ${phoneNumber}`);
-
-  const { state, saveCreds } = await useCustomRedisAuthState(redis);
-
-  // Se já estiver registrado, não faz sentido gerar uma nova sessão.
-  // O usuário deve limpar a sessão antiga primeiro se quiser forçar.
-  if (state.creds.registered) {
-    logger.warn('Uma sessão já existe no Redis. Se você precisa de uma nova,');
-    logger.warn('execute o script "clear-redis-session.mts" primeiro.');
-    await redis.quit();
-    return;
-  }
-
-  const { version } = await fetchLatestBaileysVersion();
+  logger.info(`Usando a pasta de sessão: "${SESSION_FOLDER}"`);
+  const { state, saveCreds } = await useMultiFileAuthState(SESSION_FOLDER);
 
   const sock = makeWASocket({
-    version,
+    version: (await fetchLatestBaileysVersion()).version,
     auth: state,
-    printQRInTerminal: false, // QR code is not used for pairing
-    logger,
-    browser: Browsers.macOS('Desktop'),
+    logger: pino({ level: 'silent' }),
+    printQRInTerminal: false,
+    browser: ['Gallyfans', 'Gerador de Sessão', '1.0'],
   });
 
-  // Listener para salvar credenciais quando atualizadas
   sock.ev.on('creds.update', saveCreds);
 
-  // Listener para o status da conexão
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect } = update;
+
     if (connection === 'open') {
-      logger.info('🎉 Conexão aberta com sucesso! A sessão foi salva no Redis.');
-      logger.info('Você já pode fechar este script (Ctrl+C).');
-      // A sessão já foi salva pelo 'creds.update', então podemos apenas aguardar.
+      logger.info('✅ Conexão estabelecida com sucesso.');
+      logger.info(`📱 Usuário: ${sock.user?.id.split(':')[0]}`);
+      logger.info('Sessão validada e salva. Encerrando.');
+      sock.end(undefined);
+      exit(0);
     } else if (connection === 'close') {
-      const error = new Boom(lastDisconnect?.error)?.output;
-      logger.error(`Conexão fechada. Razão: ${error?.statusCode}`);
-      if (error?.statusCode !== DisconnectReason.loggedOut) {
-        logger.info('Tentando reconectar...');
-        // A biblioteca tentará reconectar automaticamente sob certas condições
+      const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
+      logger.warn(`Conexão fechada. Razão: ${statusCode}`);
+
+      if (statusCode === DisconnectReason.loggedOut) {
+        logger.error('❌ A sessão foi deslogada. Apague a pasta "gallyfans_session" e tente novamente.');
       } else {
-        logger.fatal('Logout forçado. A sessão foi invalidada no WhatsApp.');
+        logger.error('Falha ao conectar. Verifique sua conexão ou a sessão.');
       }
-      logger.info('O script será encerrado.');
-      await redis.quit();
-      exit(1); // Encerra o processo em caso de falha na conexão
+      exit(1);
     }
   });
 
-  logger.info('Solicitando código de pareamento...');
-  try {
-    const code = await sock.requestPairingCode(phoneNumber);
-    console.log('================================================');
-    console.log('                                                ');
-    console.log(`   Seu código de pareamento é: ${code}   `);
-    console.log('                                                ');
-    console.log('   Abra o WhatsApp no seu celular, vá em        ');
-    console.log('   "Aparelhos conectados" -> "Conectar um aparelho"');
-    console.log('   e selecione "Conectar com número de telefone". ');
-    console.log('                                                ');
-    console.log('================================================');
-  } catch (error) {
-    logger.error({ error }, 'Falha ao solicitar o código de pareamento.');
-    await redis.quit();
-    exit(1);
-  }
+  // Se após um tempo não conectar, verificamos se precisamos de um código.
+  // Este timeout é para dar tempo ao 'connection.update' de disparar primeiro.
+  setTimeout(async () => {
+    if (sock.ws.readyState !== sock.ws.OPEN && !sock.authState.creds.registered) {
+      logger.info('Sessão não registrada. Solicitando código de pareamento...');
+      try {
+        const code = await sock.requestPairingCode(phoneNumber);
+        console.log('================================================');
+        console.log(`   Seu código de pareamento é: ${code}   `);
+        console.log('================================================');
+      } catch (error) {
+        logger.error({ error }, 'Falha ao solicitar o código de pareamento.');
+        exit(1);
+      }
+    } else if (sock.ws.readyState !== sock.ws.OPEN) {
+        logger.warn('Não foi possível conectar. A sessão pode estar inválida.');
+    }
+  }, 10000); // Aguarda 10 segundos
 }
 
-generateSession().catch(async (err) => {
-  logger.fatal({ err }, 'Ocorreu um erro fatal no script de geração de sessão.');
-  await redis.quit();
+generateOrValidateSession().catch((err) => {
+  logger.fatal({ err }, 'Ocorreu um erro fatal no script.');
   process.exit(1);
 });
