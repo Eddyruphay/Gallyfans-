@@ -49,7 +49,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npx prisma generate && npx tsc",
+    "build": "npx prisma generate && tsc -p gally-engine/tsconfig.json",
     "depcheck": "depcheck",
     "lint": "eslint . --ext .ts,.mts",
     "format": "prettier --write ."
