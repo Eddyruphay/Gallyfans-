@@ -133,9 +133,9 @@ export async function initWhatsApp() {
 export async function sendAlbum(jid: string, caption: string = '', images: string[]) {
     logger.info({ jid, imageCount: images.length }, 'Iniciando envio de álbum...');
 
-    if (!sock || sock.ws.readyState !== sock.ws.OPEN) {
-        logger.error('[WAPP] Tentativa de envio de álbum com o WhatsApp não conectado.');
-        throw new Error('WhatsApp não está conectado.');
+    if (!sock || !sock.user) {
+        logger.error('[WAPP] Tentativa de envio de álbum com o WhatsApp não conectado ou não autenticado.');
+        throw new Error('WhatsApp não está conectado ou autenticado.');
     }
 
     try {
