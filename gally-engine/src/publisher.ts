@@ -111,12 +111,14 @@ export async function runPublicationCycle() {
     await sendAlbum(config.targetChannelId, galleryTitle, imageUrls);
 
     // Se a chamada acima não lançar erro, consideramos sucesso
-    await updateJobStatus(jobId, 'published');
+    if (jobId !== null) {
+      await updateJobStatus(jobId, 'published');
+    }
     logger.info({ jobId }, '[PUBLISHER] Job finished successfully.');
 
   } catch (error: any) {
     logger.error({ err: error, jobId }, `[PUBLISHER] An error occurred during the publication cycle.`);
-    if (jobId) {
+    if (jobId !== null) {
       // Se sendAlbum lançar um erro, ele será pego aqui e o status será 'failed'
       await updateJobStatus(jobId, 'failed', error.message);
     }
