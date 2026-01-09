@@ -1,4 +1,4 @@
-import fs from 'fs';
+import { promises as fs } from 'fs';
 import path from 'path';
 import makeWASocket, {
   fetchLatestBaileysVersion,
@@ -16,11 +16,12 @@ import { updateWaSessionOnRender } from './render-api.js';
 const TEMP_SESSION_DIR = './temp_session';
 const CREDS_FILE_PATH = path.join(TEMP_SESSION_DIR, 'creds.json');
 let sock: WASocket | undefined;
+let debounceTimeout: NodeJS.Timeout | null = null;
 
 /**
  * Hidrata a sessão a partir da variável de ambiente (Base64) para um arquivo local.
  */
-function hydrateSession() {
+async function hydrateSession() {
   if (!config.waSession) {
     logger.warn('[HYDRATE] WA_SESSION_BASE64 não definida. O bot tentará parear se não houver sessão local.');
     return;
@@ -28,48 +29,43 @@ function hydrateSession() {
 
   logger.info(`[HYDRATE] Hidratando a sessão na pasta temporária: ${TEMP_SESSION_DIR}`);
   try {
-    if (fs.existsSync(TEMP_SESSION_DIR)) {
-      fs.rmSync(TEMP_SESSION_DIR, { recursive: true, force: true });
-    }
-    fs.mkdirSync(TEMP_SESSION_DIR, { recursive: true });
+    await fs.rm(TEMP_SESSION_DIR, { recursive: true, force: true });
+    await fs.mkdir(TEMP_SESSION_DIR, { recursive: true });
 
     const sessionJson = Buffer.from(config.waSession, 'base64').toString('utf-8');
-    fs.writeFileSync(CREDS_FILE_PATH, sessionJson);
+    await fs.writeFile(CREDS_FILE_PATH, sessionJson);
     logger.info('[HYDRATE] Sessão hidratada com sucesso.');
-  } catch (error) {
-    logger.error({ error }, '[HYDRATE] Falha ao hidratar a sessão. O serviço não poderá iniciar corretamente.');
-    throw error; // Lança o erro para impedir a inicialização
+  } catch (error: any) {
+    if (error.code !== 'ENOENT') { // Ignora erro se a pasta não existir na primeira vez
+      logger.error({ error }, '[HYDRATE] Falha ao hidratar a sessão. O serviço não poderá iniciar corretamente.');
+      throw error; // Lança o erro para impedir a inicialização
+    }
   }
 }
 
 /**
- * Salva as credenciais, lê o arquivo e atualiza a variável de ambiente no Render.
+ * Com debounce e de forma assíncrona, lê as credenciais salvas e atualiza a variável de ambiente no Render.
  */
-async function handleCredsUpdate() {
-    try {
-        // 1. Salvar as credenciais no arquivo local (comportamento padrão)
-        // A função saveCreds já é chamada internamente pelo useMultiFileAuthState,
-        // então o arquivo é atualizado automaticamente.
-        logger.info('[WAPP] Evento creds.update detectado. Iniciando a persistência da sessão na nuvem...');
-
-        // Pequeno delay para garantir que o arquivo foi completamente escrito no disco
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        // 2. Ler o arquivo de credenciais atualizado
-        const updatedCreds = fs.readFileSync(CREDS_FILE_PATH, 'utf-8');
-
-        // 3. Codificar para Base64
-        const sessionBase64 = Buffer.from(updatedCreds).toString('base64');
-
-        // 4. Chamar a API do Render para atualizar a variável de ambiente
-        await updateWaSessionOnRender(sessionBase64);
-
-        logger.info('[WAPP] Persistência da sessão na nuvem concluída com sucesso.');
-
-    } catch (error) {
-        logger.error({ error }, '[WAPP] Falha crítica no processo de persistência da sessão na nuvem.');
-        // Não lançamos o erro para não quebrar o fluxo principal do worker
+function handleCredsUpdate() {
+    if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
     }
+
+    debounceTimeout = setTimeout(async () => {
+        try {
+            logger.info('[WAPP] Debounced creds.update: Iniciando a persistência da sessão na nuvem...');
+            
+            // Leitura assíncrona e não-bloqueante
+            const updatedCreds = await fs.readFile(CREDS_FILE_PATH, 'utf-8');
+            const sessionBase64 = Buffer.from(updatedCreds).toString('base64');
+            
+            await updateWaSessionOnRender(sessionBase64);
+
+            logger.info('[WAPP] Persistência da sessão na nuvem concluída com sucesso.');
+        } catch (error) {
+            logger.error({ error }, '[WAPP] Falha crítica no processo de persistência da sessão na nuvem.');
+        }
+    }, 5000); // Debounce de 5 segundos para agrupar várias atualizações rápidas
 }
 
 
@@ -89,9 +85,10 @@ async function connectToWhatsApp() {
     browser: ['Gallyfans', 'Produção', '1.0'],
   });
 
-  sock.ev.on('creds.update', async () => {
-    await saveCreds();
-    await handleCredsUpdate();
+  // O saveCreds é síncrono, então podemos chamar o handleCredsUpdate logo em seguida.
+  sock.ev.on('creds.update', () => {
+    saveCreds();
+    handleCredsUpdate();
   });
 
   sock.ev.on('connection.update', (update) => {
