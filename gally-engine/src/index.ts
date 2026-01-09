@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { logger as honoLogger } from 'hono/logger';
 import { config } from './config.js';
 import logger from './logger.js';
-import { initWhatsApp, sendTextMessage } from './whatsapp.js';
+import { initWhatsApp, sendTextMessage, getWAConnectionState } from './whatsapp.js';
 import { runPublicationCycle } from './publisher.js';
 
 const app = new Hono();
@@ -23,7 +23,12 @@ app.use('/api/*', async (c, next) => {
 
 // --- Rotas ---
 app.get('/health', (c) => {
-  return c.json({ status: 'ok', timestamp: new Date().toISOString() });
+  const waState = getWAConnectionState();
+  if (waState === 'OPEN') {
+    return c.json({ status: 'ok', wa_status: waState, timestamp: new Date().toISOString() });
+  }
+  c.status(503);
+  return c.json({ status: 'unavailable', wa_status: waState, timestamp: new Date().toISOString() });
 });
 
 app.post('/api/trigger-cycle', (c) => {

@@ -18,6 +18,18 @@ const CREDS_FILE_PATH = path.join(TEMP_SESSION_DIR, 'creds.json');
 let sock: WASocket | undefined;
 let credsUpdateDebounceTimeout: NodeJS.Timeout | null = null;
 
+// --- State Machine ---
+export type WAConnectionState = 'CONNECTING' | 'OPEN' | 'CLOSED' | 'ERROR';
+let connectionState: WAConnectionState = 'CLOSED';
+
+/**
+ * Returns the current state of the WhatsApp connection.
+ */
+export function getWAConnectionState(): WAConnectionState {
+  return connectionState;
+}
+// ---------------------
+
 /**
  * Hidrata a sessão a partir da variável de ambiente (Base64) para um arquivo local.
  */
@@ -43,7 +55,8 @@ async function hydrateSession() {
  * Conecta ao WhatsApp usando a sessão hidratada.
  */
 async function connectToWhatsApp() {
-  logger.info('[WAPP] Conectando ao WhatsApp...');
+  logger.info('[WAPP] Iniciando tentativa de conexão com o WhatsApp...');
+  connectionState = 'CONNECTING';
 
   const { state, saveCreds } = await useMultiFileAuthState(TEMP_SESSION_DIR);
 
@@ -78,7 +91,16 @@ async function connectToWhatsApp() {
 
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect } = update;
-    logger.info(`[WAPP] Status da conexão: ${connection}`);
+    
+    if (connection) {
+      const newState = connection.toUpperCase() as WAConnectionState;
+      if (connectionState !== newState) {
+        connectionState = newState;
+        logger.info(`[WAPP] Status da conexão alterado para: ${connectionState}`);
+      }
+    } else {
+      logger.info(`[WAPP] Recebido evento de conexão intermediário (sem status definido).`);
+    }
 
     if (connection === 'close') {
       const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
@@ -88,8 +110,8 @@ async function connectToWhatsApp() {
         logger.info('Tentando reconectar em 15 segundos...');
         setTimeout(connectToWhatsApp, 15000);
       } else {
+        connectionState = 'ERROR';
         logger.error('❌ SESSÃO DESLOGADA. É necessário gerar uma nova sessão e atualizar a variável de ambiente.');
-        // O serviço irá parar de tentar reconectar.
       }
     } else if (connection === 'open') {
       logger.info('✅ Conexão com o WhatsApp estabelecida!');
@@ -101,7 +123,7 @@ async function connectToWhatsApp() {
  * Inicializa todo o serviço de WhatsApp.
  */
 export async function initWhatsApp() {
-  hydrateSession();
+  await hydrateSession();
   await connectToWhatsApp();
 }
 
