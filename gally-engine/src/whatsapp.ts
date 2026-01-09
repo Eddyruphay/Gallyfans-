@@ -22,11 +22,6 @@ let credsUpdateDebounceTimeout: NodeJS.Timeout | null = null;
  * Hidrata a sessão a partir da variável de ambiente (Base64) para um arquivo local.
  */
 async function hydrateSession() {
-  if (!config.waSession) {
-    logger.warn('[HYDRATE] WA_SESSION_BASE64 não definida. O bot tentará parear se não houver sessão local.');
-    return;
-  }
-
   logger.info(`[HYDRATE] Hidratando a sessão na pasta temporária: ${TEMP_SESSION_DIR}`);
   try {
     // Usar fs.promises para operações assíncronas

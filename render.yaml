@@ -29,7 +29,7 @@ services:
         fromService:
           type: redis
           name: session-memory
-      - fromGroup: 4Reels-secrets # For API_KEY and WA_SESSION_CREDS_JSON
+      - fromGroup: 4Reels-secrets # For API_KEY and WA_SESSION_BASE64
 
   # The Redis instance used for distributed locking.
   - type: redis

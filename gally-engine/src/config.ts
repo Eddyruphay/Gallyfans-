@@ -18,7 +18,7 @@ const requiredEnvVars = {
   DATABASE_URL,
   TARGET_CHANNEL_ID,
   API_KEY,
-  // WA_SESSION_BASE64 is optional on first run (for pairing)
+  WA_SESSION_BASE64, // Now mandatory
 };
 
 const missingEnvVars = Object.entries(requiredEnvVars)
@@ -26,8 +26,8 @@ const missingEnvVars = Object.entries(requiredEnvVars)
   .map(([key]) => key);
 
 if (missingEnvVars.length > 0) {
+  // The new logger.fatal will also exit the process
   logger.fatal(`The following required environment variables are missing: ${missingEnvVars.join(', ')}.`);
-  process.exit(1);
 }
 
 // Configuração unificada para o Gally Engine
