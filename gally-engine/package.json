@@ -1,0 +1,36 @@
+{
+  "name": "whatsapp-sender",
+  "version": "1.0.0",
+  "description": "A dedicated microservice to handle WhatsApp connections and messaging.",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "npx tsc",
+    "start": "node dist/index.js",
+    "dev": "npx tsx src/index.ts"
+  },
+  "keywords": [
+    "whatsapp",
+    "baileys",
+    "microservice"
+  ],
+  "author": "ARORA",
+  "license": "ISC",
+  "dependencies": {
+    "@hono/node-server": "^1.11.1",
+    "@whiskeysockets/baileys": "^v7.0.0-rc.9",
+    "dotenv": "^16.4.5",
+    "hono": "^4.4.6",
+    "ioredis": "^5.4.1",
+    "node-cache": "^5.1.2",
+    "pino": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "tsx": "^4.15.5",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

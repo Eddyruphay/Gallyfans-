@@ -172,3 +172,7 @@ _archived_/
 !/baileys_auth_hello/**/*.json
 
 !/tsconfig.scripts.json
+
+# Allow engine config files
+!/gally-engine/package.json
+!/gally-engine/tsconfig.json
