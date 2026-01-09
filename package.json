@@ -48,6 +48,7 @@
     "typescript-eslint": "^8.48.0"
   },
   "scripts": {
+    "start": "node gally-engine/dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "npx prisma generate && tsc -p gally-engine/tsconfig.json",
     "depcheck": "depcheck",
