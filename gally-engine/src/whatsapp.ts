@@ -165,3 +165,25 @@ export async function sendAlbum(jid: string, caption: string = '', images: strin
         throw error;
     }
 }
+
+/**
+ * Envia uma mensagem de texto simples.
+ * @param jid O JID do destinatário.
+ * @param text O texto a ser enviado.
+ */
+export async function sendTextMessage(jid: string, text: string) {
+    logger.info({ jid }, 'Iniciando envio de mensagem de texto...');
+
+    if (!sock || !sock.user) {
+        logger.error('[WAPP] Tentativa de envio de texto com o WhatsApp não conectado ou não autenticado.');
+        throw new Error('WhatsApp não está conectado ou autenticado.');
+    }
+
+    try {
+        await sock.sendMessage(jid, { text });
+        logger.info({ jid }, 'Mensagem de texto enviada com sucesso.');
+    } catch (error) {
+        logger.error({ err: error, jid }, 'Erro durante o envio da mensagem de texto.');
+        throw error;
+    }
+}
