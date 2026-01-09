@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { logger as honoLogger } from 'hono/logger';
 import { config } from './config.js';
 import logger from './logger.js';
-import { initWhatsApp, sendTextMessage, getWAConnectionState } from './whatsapp.js';
+import { initWhatsApp, sendTextMessage, getWAConnectionState, sendAlbum } from './whatsapp.js';
 import { runPublicationCycle } from './publisher.js';
 
 const app = new Hono();
@@ -49,6 +49,35 @@ app.post('/api/send-test-message', async (c) => {
     } catch (error: any) {
         logger.error({ err: error }, '[API] Erro ao enviar mensagem de teste.');
         return c.json({ success: false, message: error.message }, 500);
+    }
+});
+
+app.post('/api/send-album', async (c) => {
+    try {
+        const { jid, images, caption } = await c.req.json<{ jid: string; images: string[]; caption?: string }>();
+
+        if (!jid || typeof jid !== 'string') {
+            c.status(400);
+            return c.json({ success: false, message: 'The "jid" field is required and must be a string.' });
+        }
+
+        if (!images || !Array.isArray(images) || images.length === 0) {
+            c.status(400);
+            return c.json({ success: false, message: 'The "images" field is required and must be a non-empty array of strings.' });
+        }
+
+        logger.info({ jid, imageCount: images.length }, '[API] Solicitação para enviar álbum recebida.');
+
+        // Fire-and-forget: não esperamos o resultado final, pois o envio pode demorar.
+        sendAlbum(jid, caption, images).catch(err => {
+            logger.error({ err, jid }, '[API] Erro assíncrono ao enviar o álbum.');
+        });
+
+        return c.json({ success: true, message: `Solicitação de envio de álbum para ${jid} recebida e sendo processada.` });
+    } catch (error: any) {
+        logger.error({ err: error }, '[API] Erro ao processar a solicitação /api/send-album.');
+        c.status(500);
+        return c.json({ success: false, message: 'Internal Server Error' });
     }
 });
 
