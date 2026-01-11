@@ -84,7 +84,7 @@ async function connectToWhatsApp() {
   sock = makeWASocket({
     version: (await fetchLatestBaileysVersion()).version,
     auth: state,
-    logger: pino({ level: 'silent' }),
+    logger: pino({ level: 'debug' }),
     printQRInTerminal: false,
     browser: ['Gallyfans', 'Produção', '1.0'],
   });
