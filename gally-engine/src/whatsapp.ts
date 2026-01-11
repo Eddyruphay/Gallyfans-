@@ -44,7 +44,18 @@ async function hydrateSession() {
     });
     await fs.mkdir(TEMP_SESSION_DIR, { recursive: true });
 
-    const sessionJson = Buffer.from(config.waSession, 'base64').toString('utf-8');
+    let sessionString = config.waSession;
+    const sessionMarker = 'H4sI';
+    const markerIndex = sessionString.indexOf(sessionMarker);
+
+    if (markerIndex > 0) {
+      logger.info(`[HYDRATE] Prefixo encontrado na string de sessão. Removendo prefixo antes de "${sessionMarker}".`);
+      sessionString = sessionString.substring(markerIndex);
+    } else if (markerIndex === -1) {
+      logger.warn(`[HYDRATE] O marcador de sessão "${sessionMarker}" não foi encontrado. Usando a string de sessão como está, mas isso pode indicar um problema.`);
+    }
+
+    const sessionJson = Buffer.from(sessionString, 'base64').toString('utf-8');
     await fs.writeFile(CREDS_FILE_PATH, sessionJson);
     logger.info('[HYDRATE] Sessão hidratada com sucesso.');
   } catch (error) {
