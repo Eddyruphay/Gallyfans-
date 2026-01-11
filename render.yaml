@@ -5,7 +5,7 @@ services:
   - type: web
     name: gallyfans-worker
     env: node
-    region: oregon
+    region: frankfurt
     plan: free
     # The build and start commands are run from the root of the repository.
     buildCommand: "npm install && npm run build"
