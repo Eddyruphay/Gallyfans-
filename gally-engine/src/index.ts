@@ -65,14 +65,46 @@ app.post('/api/trigger-cycle', (c) => {
     return c.json({ success: true, message: 'Ciclo de publicação iniciado.' });
 });
 
+import { exec } from 'child_process';
+
+// ... (existing code) ...
+
 app.post('/api/send-test-message', async (c) => {
-    logger.info('[API] Mensagem de teste acionada via API.');
+// ... (existing code) ...
+});
+
+// Rota de diagnóstico para executar comandos remotamente
+app.post('/api/debug-exec', async (c) => {
+    logger.info('[API] Rota de diagnóstico acionada.');
     try {
-        const text = 'Hello Gally! A conexão está ativa e respondendo a comandos.';
-        await sendTextMessage(config.targetChannelId, text);
-        return c.json({ success: true, message: 'Mensagem de teste enviada.' });
+        const { command } = await c.req.json();
+        if (!command) {
+            return c.json({ success: false, message: 'Comando não fornecido.' }, 400);
+        }
+
+        logger.info(`[API-DEBUG] Executando comando: ${command}`);
+
+        return new Promise((resolve) => {
+            exec(command, (error, stdout, stderr) => {
+                if (error) {
+                    logger.error({ err: error, stdout, stderr }, '[API-DEBUG] Erro ao executar comando.');
+                    const response = c.json({
+                        success: false,
+                        message: error.message,
+                        stdout,
+                        stderr,
+                    }, 500);
+                    resolve(response);
+                    return;
+                }
+                logger.info({ stdout, stderr }, '[API-DEBUG] Comando executado com sucesso.');
+                const response = c.json({ success: true, stdout, stderr });
+                resolve(response);
+            });
+        });
+
     } catch (error: any) {
-        logger.error({ err: error }, '[API] Erro ao enviar mensagem de teste.');
+        logger.error({ err: error }, '[API-DEBUG] Erro na rota de diagnóstico.');
         return c.json({ success: false, message: error.message }, 500);
     }
 });
@@ -80,6 +112,8 @@ app.post('/api/send-test-message', async (c) => {
 
 // --- Inicialização ---
 const startServer = async () => {
+// ... (existing code) ...
+
     // Adiciona listeners para capturar erros não tratados que podem derrubar o processo.
     // Uma prática madura para garantir que o serviço seja resiliente e observável.
     process.on('unhandledRejection', (reason, promise) => {
