@@ -23,13 +23,37 @@ app.use('/api/*', async (c, next) => {
 });
 
 // --- Rotas ---
+
+// Healthcheck de Liveness: Apenas informa se o processo está vivo e respondendo.
+// Deve sempre retornar 200 para não causar restarts desnecessários pelo Render.
 app.get('/health', (c) => {
+  return c.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Healthcheck de Readiness/Status: Informa o estado real das dependências.
+// Usado para diagnóstico e observabilidade.
+app.get('/status', (c) => {
   const waState = getWAConnectionState();
-  if (waState === 'OPEN') {
-    return c.json({ status: 'ok', wa_status: waState, timestamp: new Date().toISOString() });
-  }
-  c.status(503);
-  return c.json({ status: 'unavailable', wa_status: waState, timestamp: new Date().toISOString() });
+  const isReady = waState === 'OPEN';
+  
+  const status = {
+    server: {
+      status: 'running',
+    },
+    whatsapp: {
+      status: waState,
+    },
+    // O scheduler está sempre "correndo" devido ao setTimeout encadeado.
+    scheduler: {
+        status: 'running',
+    },
+    ready: isReady,
+    timestamp: new Date().toISOString(),
+  };
+
+  // Retorna 200 OK, mas o corpo do JSON indica se o serviço está "pronto".
+  // Um monitor mais avançado poderia usar o campo 'ready' para tomar decisões.
+  return c.json(status);
 });
 
 app.post('/api/trigger-cycle', (c) => {
