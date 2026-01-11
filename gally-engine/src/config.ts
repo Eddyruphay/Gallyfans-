@@ -28,7 +28,7 @@ export const config = {
 
   // Optional variables with defaults
   port: Number(process.env.PORT || 3000),
-  publicationIntervalMinutes: Number(process.env.PUBLICATION_INTERVAL_MINUTES || 5),
+  publicationIntervalMinutes: Number(process.env.PUBLICATION_INTERVAL_MINUTES || 30),
   delayBetweenMessages: Number(process.env.DELAY_BETWEEN_MESSAGES || 2000),
 
   // Optional variables for specific features

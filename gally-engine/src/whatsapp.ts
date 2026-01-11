@@ -17,10 +17,8 @@ const TEMP_SESSION_DIR = './temp_session';
 const CREDS_FILE_PATH = path.join(TEMP_SESSION_DIR, 'creds.json');
 let sock: WASocket | undefined;
 let credsUpdateDebounceTimeout: NodeJS.Timeout | null = null;
-
-// --- State Machine ---
-export type WAConnectionState = 'CONNECTING' | 'OPEN' | 'CLOSED' | 'ERROR';
-let connectionState: WAConnectionState = 'CLOSED';
+let reconnectAttempts = 0;
+const MAX_RECONNECT_DELAY = 5 * 60 * 1000; // 5 minutos
 
 /**
  * Returns the current state of the WhatsApp connection.
@@ -107,13 +105,16 @@ async function connectToWhatsApp() {
       logger.warn(`🔌 Conexão fechada. Razão: ${statusCode}`);
       
       if (statusCode !== DisconnectReason.loggedOut) {
-        logger.info('Tentando reconectar em 15 segundos...');
-        setTimeout(connectToWhatsApp, 15000);
+        reconnectAttempts++;
+        const delay = Math.min(Math.pow(2, reconnectAttempts) * 5000, MAX_RECONNECT_DELAY);
+        logger.info(`Tentando reconectar em ${delay / 1000} segundos... (Tentativa ${reconnectAttempts})`);
+        setTimeout(connectToWhatsApp, delay);
       } else {
         connectionState = 'ERROR';
         logger.error('❌ SESSÃO DESLOGADA. É necessário gerar uma nova sessão e atualizar a variável de ambiente.');
       }
     } else if (connection === 'open') {
+      reconnectAttempts = 0; // Reseta as tentativas ao conectar com sucesso
       logger.info('✅ Conexão com o WhatsApp estabelecida!');
     }
   });
@@ -125,6 +126,17 @@ async function connectToWhatsApp() {
 export async function initWhatsApp() {
   await hydrateSession();
   await connectToWhatsApp();
+}
+
+/**
+ * Encerra a conexão com o WhatsApp de forma limpa.
+ */
+export async function closeWhatsApp() {
+    if (sock) {
+        logger.info('[WAPP] Encerrando a conexão com o WhatsApp...');
+        await sock.logout();
+        logger.info('[WAPP] Conexão com o WhatsApp encerrada.');
+    }
 }
 
 /**
@@ -146,7 +158,7 @@ export async function sendAlbum(jid: string, caption: string = '', images: strin
         for (let i = 0; i < images.length; i++) {
             const imageUrl = images[i];
             const isFirstImage = i === 0;
-            const messageCaption = isFirstImage ? caption : ' ';
+            const messageCaption = isFirstImage ? caption : undefined;
 
             logger.info(`Enviando imagem ${i + 1}/${images.length} para ${jid}`);
             

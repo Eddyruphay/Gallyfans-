@@ -1,64 +1,45 @@
 import { getPrisma } from './db.js';
-import { type Image, type Prisma } from '@prisma/client';
-import { config } from './config.js';
 import logger from './logger.js';
 import { sendAlbum } from './whatsapp.js';
 
-const prisma = getPrisma();
+// Estrutura de dados esperada no campo JSON 'images' da tabela 'published_items'
+interface JobPayload {
+  imageUrls: string[];
+  captionData: {
+    edition: string;
+    by: string;
+    models: string[];
+  };
+}
 
 /**
- * Fetches the next available job from the queue, locks it, and updates its status.
+ * Busca o próximo job pendente na fila e o trava para processamento.
+ * A lógica foi simplificada para apenas buscar o job, pois todos os dados
+ * necessários agora estão contidos no próprio payload do job.
  */
 async function getNextJob() {
   try {
-    // This transaction ensures that we lock the row for processing
-    const job = await prisma.$transaction(async (tx) => {
-      // Find one pending job, lock it, and update its status to 'processing'
-      const nextJobs = await tx.$queryRaw<any[]>`
-        UPDATE "published_items"
-        SET status = 'processing', "processing_started_at" = NOW()
-        WHERE id = (
-          SELECT id
-          FROM "published_items"
-          WHERE status = 'pending'
-          ORDER BY "created_at" ASC
-          LIMIT 1
-          FOR UPDATE SKIP LOCKED
-        )
-        RETURNING *;
-      `;
+    const jobs = await prisma.$queryRaw<any[]>`
+      UPDATE "published_items"
+      SET status = 'processing', "processing_started_at" = NOW()
+      WHERE id = (
+        SELECT id
+        FROM "published_items"
+        WHERE status = 'pending'
+        ORDER BY "created_at" ASC
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING *;
+    `;
 
-      if (!nextJobs || nextJobs.length === 0) {
-        return null; // No pending jobs
-      }
-
-      const jobData = nextJobs[0];
-
-      // We need the gallery data to get the images and title
-      const gallery = await tx.gallery.findUnique({
-        where: { id: jobData.gallery_id },
-        include: { images: { orderBy: { position: 'asc' } } },
-      });
-
-      if (!gallery) {
-        // If the gallery is not found, fail the job immediately
-        await tx.publishedItem.update({
-          where: { id: jobData.id },
-          data: { status: 'failed', errorLog: `Gallery with id ${jobData.gallery_id} not found.` },
-        });
-        return null;
-      }
-
-      return {
-        job: jobData,
-        galleryTitle: gallery.title,
-        images: gallery.images,
-      };
-    });
-    return job;
+    if (!jobs || jobs.length === 0) {
+      return null; // No pending jobs
+    }
+    return jobs[0];
   } catch (error) {
     logger.error({ err: error }, '[DB] Error in getNextJob transaction.');
-    throw error; // Rethrow to be caught by the main cycle handler
+    throw error;
   }
 }
 
@@ -85,42 +66,58 @@ async function updateJobStatus(jobId: number, status: 'published' | 'failed', er
  * The main publication cycle logic.
  */
 export async function runPublicationCycle() {
-  logger.info('[PUBLISHER] Starting publication cycle...');
-  let jobId: number | null = null;
+  logger.info('[PUBLISHER] Checking for a job to publish...');
+  let job: any = null;
 
   try {
-    const jobData = await getNextJob();
+    job = await getNextJob();
 
-    if (!jobData) {
-      logger.info('[PUBLISHER] No pending jobs found. Cycle finished.');
+    // Se não houver job, o ciclo termina silenciosamente.
+    if (!job) {
+      logger.info('[PUBLISHER] No pending jobs found.');
       return;
     }
 
-    jobId = jobData.job.id;
-    const { galleryTitle, images } = jobData;
-    logger.info({ jobId }, `[PUBLISHER] Processing job. Publishing gallery: "${galleryTitle}"`);
+    logger.info({ jobId: job.id }, `[PUBLISHER] Processing job for gallery ID: ${job.gallery_id}`);
 
-    if (!images || images.length === 0) {
-      throw new Error('No images found in the gallery.');
+    // Validação robusta do payload do job
+    if (!job.images || typeof job.images !== 'object' || Array.isArray(job.images)) {
+      throw new Error('Job payload (images field) is missing or not a valid JSON object.');
     }
 
-    // Extrai as URLs das imagens
-    const imageUrls = images.map(img => img.imageUrl);
+    const payload: JobPayload = job.images as JobPayload;
 
-    // Envia o álbum diretamente pela função interna
-    await sendAlbum(config.targetChannelId, galleryTitle, imageUrls);
-
-    // Se a chamada acima não lançar erro, consideramos sucesso
-    if (jobId !== null) {
-      await updateJobStatus(jobId, 'published');
+    if (!payload.imageUrls || !Array.isArray(payload.imageUrls) || !payload.captionData) {
+      throw new Error('Invalid job payload structure. "imageUrls" or "captionData" is missing or invalid.');
     }
-    logger.info({ jobId }, '[PUBLISHER] Job finished successfully.');
+    if (payload.imageUrls.length === 0) {
+      throw new Error('No image URLs found in the job payload. Cannot publish an empty album.');
+    }
+
+    const { imageUrls, captionData } = payload;
+    const { edition, by, models } = captionData;
+
+    // Construir a legenda final com base nos dados do job
+    const captionLines = [
+      `Edição: ${edition}`,
+      `By: ${by}`,
+      `Models: ${models.join(', ')}`,
+      '', // Linha em branco para espaçamento
+      'Galeria completa 👉 [LINK_PLACEHOLDER]'
+    ];
+    const finalCaption = captionLines.join('\n');
+
+    logger.info({ jobId: job.id }, `Publishing album with ${imageUrls.length} images.`);
+
+    await sendAlbum(config.targetChannelId, finalCaption, imageUrls);
+
+    await updateJobStatus(job.id, 'published');
+    logger.info({ jobId: job.id }, '[PUBLISHER] Job finished successfully.');
 
   } catch (error: any) {
-    logger.error({ err: error, jobId }, `[PUBLISHER] An error occurred during the publication cycle.`);
-    if (jobId !== null) {
-      // Se sendAlbum lançar um erro, ele será pego aqui e o status será 'failed'
-      await updateJobStatus(jobId, 'failed', error.message);
+    logger.error({ err: error, jobId: job?.id }, `[PUBLISHER] Failed to process job.`);
+    if (job?.id) {
+      await updateJobStatus(job.id, 'failed', error.message);
     }
   }
 }
