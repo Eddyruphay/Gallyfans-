@@ -33,6 +33,6 @@ export const config = {
   startupDelaySeconds: Number(process.env.STARTUP_DELAY_SECONDS || 45),
 
   // Optional variables for specific features
-  renderApiKey: process.env.RENDER_API_KEY,
-  renderServiceId: process.env.RENDER_SERVICE_ID,
+  renderApiKey: requireEnv('RENDER_API_KEY'),
+  renderServiceId: requireEnv('RENDER_SERVICE_ID'),
 };
