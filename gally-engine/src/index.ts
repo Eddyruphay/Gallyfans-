@@ -84,24 +84,24 @@ app.post('/api/debug-exec', async (c) => {
 
         logger.info(`[API-DEBUG] Executando comando: ${command}`);
 
-        return new Promise((resolve) => {
+        const result = await new Promise<{ error: Error | null; stdout: string; stderr: string }>((resolve) => {
             exec(command, (error, stdout, stderr) => {
-                if (error) {
-                    logger.error({ err: error, stdout, stderr }, '[API-DEBUG] Erro ao executar comando.');
-                    const response = c.json({
-                        success: false,
-                        message: error.message,
-                        stdout,
-                        stderr,
-                    }, 500);
-                    resolve(response);
-                    return;
-                }
-                logger.info({ stdout, stderr }, '[API-DEBUG] Comando executado com sucesso.');
-                const response = c.json({ success: true, stdout, stderr });
-                resolve(response);
+                resolve({ error, stdout, stderr });
             });
         });
+
+        if (result.error) {
+            logger.error({ err: result.error, stdout: result.stdout, stderr: result.stderr }, '[API-DEBUG] Erro ao executar comando.');
+            return c.json({
+                success: false,
+                message: result.error.message,
+                stdout: result.stdout,
+                stderr: result.stderr,
+            }, 500);
+        }
+
+        logger.info({ stdout: result.stdout, stderr: result.stderr }, '[API-DEBUG] Comando executado com sucesso.');
+        return c.json({ success: true, stdout: result.stdout, stderr: result.stderr });
 
     } catch (error: any) {
         logger.error({ err: error }, '[API-DEBUG] Erro na rota de diagnóstico.');
