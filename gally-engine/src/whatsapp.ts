@@ -5,6 +5,7 @@ import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
   WASocket,
+  Browsers,
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import { Boom } from '@hapi/boom';
@@ -93,11 +94,10 @@ async function connectToWhatsApp() {
   };
 
   sock = makeWASocket({
-    version: (await fetchLatestBaileysVersion()).version,
     auth: state,
     logger: pino({ level: 'debug' }),
     printQRInTerminal: false,
-    browser: ['Gallyfans', 'Produção', '1.0'],
+    browser: Browsers.ubuntu('Chrome'),
   });
 
   sock.ev.on('creds.update', debouncedCredsUpdate);
