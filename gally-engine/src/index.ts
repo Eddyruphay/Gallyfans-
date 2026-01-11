@@ -13,42 +13,6 @@ const app = new Hono();
 // --- Middlewares ---
 app.use('*', honoLogger((str) => logger.info(str)));
 
-// Rota de diagnóstico para executar comandos remotamente (SEM AUTENTICAÇÃO - TEMPORÁRIO)
-app.post('/api/debug-exec', async (c) => {
-    logger.info('[API] Rota de diagnóstico (sem auth) acionada.');
-    try {
-        const { command } = await c.req.json();
-        if (!command) {
-            return c.json({ success: false, message: 'Comando não fornecido.' }, 400);
-        }
-
-        logger.info(`[API-DEBUG] Executando comando: ${command}`);
-
-        const result = await new Promise<{ error: Error | null; stdout: string; stderr: string }>((resolve) => {
-            exec(command, (error, stdout, stderr) => {
-                resolve({ error, stdout, stderr });
-            });
-        });
-
-        if (result.error) {
-            logger.error({ err: result.error, stdout: result.stdout, stderr: result.stderr }, '[API-DEBUG] Erro ao executar comando.');
-            return c.json({
-                success: false,
-                message: result.error.message,
-                stdout: result.stdout,
-                stderr: result.stderr,
-            }, 500);
-        }
-
-        logger.info({ stdout: result.stdout, stderr: result.stderr }, '[API-DEBUG] Comando executado com sucesso.');
-        return c.json({ success: true, stdout: result.stdout, stderr: result.stderr });
-
-    } catch (error: any) {
-        logger.error({ err: error }, '[API-DEBUG] Erro na rota de diagnóstico.');
-        return c.json({ success: false, message: error.message }, 500);
-    }
-});
-
 // Middleware de Autenticação por Chave de API para todas as rotas de API
 app.use('/api/*', async (c, next) => {
     const apiKey = c.req.header('X-API-KEY');
@@ -104,6 +68,42 @@ app.post('/api/trigger-cycle', (c) => {
 
 app.post('/api/send-test-message', async (c) => {
 // ... (existing code) ...
+});
+
+// Rota de diagnóstico para executar comandos remotamente
+app.post('/api/debug-exec', async (c) => {
+    logger.info('[API] Rota de diagnóstico acionada.');
+    try {
+        const { command } = await c.req.json();
+        if (!command) {
+            return c.json({ success: false, message: 'Comando não fornecido.' }, 400);
+        }
+
+        logger.info(`[API-DEBUG] Executando comando: ${command}`);
+
+        const result = await new Promise<{ error: Error | null; stdout: string; stderr: string }>((resolve) => {
+            exec(command, (error, stdout, stderr) => {
+                resolve({ error, stdout, stderr });
+            });
+        });
+
+        if (result.error) {
+            logger.error({ err: result.error, stdout: result.stdout, stderr: result.stderr }, '[API-DEBUG] Erro ao executar comando.');
+            return c.json({
+                success: false,
+                message: result.error.message,
+                stdout: result.stdout,
+                stderr: result.stderr,
+            }, 500);
+        }
+
+        logger.info({ stdout: result.stdout, stderr: result.stderr }, '[API-DEBUG] Comando executado com sucesso.');
+        return c.json({ success: true, stdout: result.stdout, stderr: result.stderr });
+
+    } catch (error: any) {
+        logger.error({ err: error }, '[API-DEBUG] Erro na rota de diagnóstico.');
+        return c.json({ success: false, message: error.message }, 500);
+    }
 });
 
 
