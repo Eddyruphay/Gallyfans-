@@ -1,6 +1,9 @@
 import { getPrisma } from './db.js';
 import logger from './logger.js';
 import { sendAlbum } from './whatsapp.js';
+import { config } from './config.js';
+
+const prisma = getPrisma();
 
 // Estrutura de dados esperada no campo JSON 'images' da tabela 'published_items'
 interface JobPayload {

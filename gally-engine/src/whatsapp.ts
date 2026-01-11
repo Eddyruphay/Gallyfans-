@@ -20,11 +20,15 @@ let credsUpdateDebounceTimeout: NodeJS.Timeout | null = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_DELAY = 5 * 60 * 1000; // 5 minutos
 
+// --- State Machine ---
+export type WAConnectionState = 'CONNECTING' | 'OPEN' | 'CLOSED' | 'ERROR';
+let currentState: WAConnectionState = 'CLOSED';
+
 /**
  * Returns the current state of the WhatsApp connection.
  */
 export function getWAConnectionState(): WAConnectionState {
-  return connectionState;
+  return currentState;
 }
 // ---------------------
 
@@ -54,7 +58,7 @@ async function hydrateSession() {
  */
 async function connectToWhatsApp() {
   logger.info('[WAPP] Iniciando tentativa de conexão com o WhatsApp...');
-  connectionState = 'CONNECTING';
+  currentState = 'CONNECTING';
 
   const { state, saveCreds } = await useMultiFileAuthState(TEMP_SESSION_DIR);
 
@@ -92,9 +96,9 @@ async function connectToWhatsApp() {
     
     if (connection) {
       const newState = connection.toUpperCase() as WAConnectionState;
-      if (connectionState !== newState) {
-        connectionState = newState;
-        logger.info(`[WAPP] Status da conexão alterado para: ${connectionState}`);
+      if (currentState !== newState) {
+        currentState = newState;
+        logger.info(`[WAPP] Status da conexão alterado para: ${currentState}`);
       }
     } else {
       logger.info(`[WAPP] Recebido evento de conexão intermediário (sem status definido).`);
@@ -110,11 +114,12 @@ async function connectToWhatsApp() {
         logger.info(`Tentando reconectar em ${delay / 1000} segundos... (Tentativa ${reconnectAttempts})`);
         setTimeout(connectToWhatsApp, delay);
       } else {
-        connectionState = 'ERROR';
+        currentState = 'ERROR';
         logger.error('❌ SESSÃO DESLOGADA. É necessário gerar uma nova sessão e atualizar a variável de ambiente.');
       }
     } else if (connection === 'open') {
       reconnectAttempts = 0; // Reseta as tentativas ao conectar com sucesso
+      currentState = 'OPEN';
       logger.info('✅ Conexão com o WhatsApp estabelecida!');
     }
   });
