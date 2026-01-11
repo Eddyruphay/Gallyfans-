@@ -30,6 +30,7 @@ export const config = {
   port: Number(process.env.PORT || 3000),
   publicationIntervalMinutes: Number(process.env.PUBLICATION_INTERVAL_MINUTES || 30),
   delayBetweenMessages: Number(process.env.DELAY_BETWEEN_MESSAGES || 2000),
+  startupDelaySeconds: Number(process.env.STARTUP_DELAY_SECONDS || 45),
 
   // Optional variables for specific features
   renderApiKey: process.env.RENDER_API_KEY,
