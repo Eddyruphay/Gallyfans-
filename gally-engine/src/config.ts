@@ -15,6 +15,9 @@ function requireEnv(key: string): string {
     // The throw is for TypeScript's benefit to understand this function never returns undefined.
     throw new Error(`Missing required environment variable: ${key}`);
   }
+  if (key === 'WA_SESSION_BASE64') {
+    logger.info(`[CONFIG] WA_SESSION_BASE64 loaded with length: ${value.length}`);
+  }
   return value;
 }
 
@@ -28,11 +31,11 @@ export const config = {
 
   // Optional variables with defaults
   port: Number(process.env.PORT || 3000),
-  publicationIntervalMinutes: Number(process.env.PUBLICATION_INTERVAL_MINUTES || 30),
-  delayBetweenMessages: Number(process.env.DELAY_BETWEEN_MESSAGES || 2000),
-  startupDelaySeconds: Number(process.env.STARTUP_DELAY_SECONDS || 45),
+    publicationIntervalMinutes: parseInt(process.env.PUBLICATION_INTERVAL_MINUTES || '30', 10),
+    delayBetweenMessages: parseInt(process.env.DELAY_BETDEN_MESSAGES || '2000', 10),
 
-  // Optional variables for specific features
-  renderApiKey: requireEnv('RENDER_API_KEY'),
-  renderServiceId: requireEnv('RENDER_SERVICE_ID'),
+    // Configuração do Proxy (Opcional)
+    proxyUrl: process.env.PROXY_URL,
+    proxyUsername: process.env.PROXY_USERNAME,
+    proxyPassword: process.env.PROXY_PASSWORD,
 };

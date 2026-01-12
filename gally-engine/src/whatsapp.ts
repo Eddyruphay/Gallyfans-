@@ -46,6 +46,7 @@ async function hydrateSession() {
     await fs.mkdir(TEMP_SESSION_DIR, { recursive: true });
 
     let sessionString = config.waSession;
+    logger.info(`[HYDRATE] Original session string length from config: ${sessionString.length}`);
     const sessionMarker = 'H4sI';
     const markerIndex = sessionString.indexOf(sessionMarker);
 
