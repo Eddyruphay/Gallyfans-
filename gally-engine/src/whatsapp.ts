@@ -37,7 +37,7 @@ export function getWAConnectionState(): WAConnectionState {
  * Hidrata a sessão a partir da variável de ambiente (Base64) para um arquivo local.
  */
 async function hydrateSession() {
-  logger.info(`[HYDRATE] Hidratando a sessão completa na pasta temporária: ${TEMP_SESSION_DIR}`);
+  logger.info(`[HYDRATE] Hidratando a sessão a partir da variável de ambiente para: ${TEMP_SESSION_DIR}`);
   try {
     // Limpa o diretório da sessão temporária
     await fs.rm(TEMP_SESSION_DIR, { recursive: true, force: true }).catch(err => {
@@ -45,38 +45,22 @@ async function hydrateSession() {
     });
     await fs.mkdir(TEMP_SESSION_DIR, { recursive: true });
 
-    const sessionBundleString = config.waSession;
-    if (!sessionBundleString) {
+    const sessionString = config.waSession;
+    if (!sessionString) {
         throw new Error('A variável de ambiente WA_SESSION_BASE64 está vazia.');
     }
 
-    logger.info(`[HYDRATE] String da sessão recebida com comprimento: ${sessionBundleString.length}`);
+    logger.info(`[HYDRATE] String da sessão Base64 recebida com comprimento: ${sessionString.length}`);
 
-    // Decodifica a string Base64 para a string JSON do bundle
-    const decodedBundle = Buffer.from(sessionBundleString, 'base64').toString('utf-8');
+    // Decodifica a string Base64 para o conteúdo JSON da sessão
+    const sessionJsonContent = Buffer.from(sessionString, 'base64').toString('utf-8');
     
-    // Parseia a string JSON para o objeto que contém os arquivos da sessão
-    const sessionFiles = JSON.parse(decodedBundle);
+    // Escreve o conteúdo decodificado diretamente no arquivo creds.json
+    await fs.writeFile(CREDS_FILE_PATH, sessionJsonContent);
 
-    const fileNames = Object.keys(sessionFiles);
-    if (fileNames.length === 0) {
-        throw new Error('O bundle da sessão está vazio ou em formato inválido.');
-    }
-
-    logger.info(`[HYDRATE] Desempacotando ${fileNames.length} arquivos da sessão: [${fileNames.join(', ')}]`);
-
-    // Itera sobre cada arquivo no bundle e o escreve no disco
-    for (const fileName of fileNames) {
-      const fileContent = sessionFiles[fileName];
-      const filePath = path.join(TEMP_SESSION_DIR, fileName);
-      // O conteúdo já é um objeto JSON, então o stringify para salvar
-      await fs.writeFile(filePath, JSON.stringify(fileContent, null, 2));
-      logger.debug(`  - Arquivo '${fileName}' hidratado com sucesso.`);
-    }
-
-    logger.info('[HYDRATE] Sessão completa hidratada com sucesso.');
+    logger.info(`[HYDRATE] Sessão escrita em '${CREDS_FILE_PATH}' com sucesso.`);
   } catch (error) {
-    logger.error({ error }, '[HYDRATE] Falha ao hidratar a sessão completa. Verifique se a WA_SESSION_BASE64 está no formato de bundle correto.');
+    logger.error({ error }, '[HYDRATE] Falha ao hidratar a sessão. Verifique se a WA_SESSION_BASE64 contém o conteúdo de um arquivo de sessão válido (creds.json).');
     throw error;
   }
 }
