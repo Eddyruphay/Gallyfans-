@@ -24,7 +24,6 @@ export const config = {
   databaseUrl: requireEnv('DATABASE_URL'),
   targetChannelId: requireEnv('TARGET_CHANNEL_ID'),
   apiKey: requireEnv('API_KEY'),
-  waSession: requireEnv('WA_SESSION_BASE64'), // Correctly inferred as `string`
 
   // Optional variables with defaults
   port: Number(process.env.PORT || 3000),

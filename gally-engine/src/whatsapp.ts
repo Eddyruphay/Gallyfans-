@@ -36,8 +36,27 @@ export function getWAConnectionState(): WAConnectionState {
 /**
  * Hidrata a sessão a partir da variável de ambiente (Base64) para um arquivo local.
  */
+const ENV_PREFIX = 'WA_SESSION_';
+
+/**
+ * Converte um nome de variável de ambiente de volta para um nome de arquivo.
+ * Ex: 'WA_SESSION_CREDS_JSON' -> 'creds.json'
+ * @param envVar O nome da variável de ambiente.
+ * @returns O nome do arquivo original.
+ */
+function envVarToFileName(envVar: string): string {
+  return envVar
+    .replace(ENV_PREFIX, '')
+    .replace(/_/g, '.')
+    .toLowerCase();
+}
+
+/**
+ * Hidrata a sessão completa a partir de múltiplas variáveis de ambiente.
+ */
 async function hydrateSession() {
-  logger.info(`[HYDRATE] Hidratando a sessão a partir da variável de ambiente para: ${TEMP_SESSION_DIR}`);
+  logger.info(`[HYDRATE] Iniciando hidratação da sessão multi-arquivo a partir das variáveis de ambiente...`);
+  
   try {
     // Limpa o diretório da sessão temporária
     await fs.rm(TEMP_SESSION_DIR, { recursive: true, force: true }).catch(err => {
@@ -45,22 +64,36 @@ async function hydrateSession() {
     });
     await fs.mkdir(TEMP_SESSION_DIR, { recursive: true });
 
-    const sessionString = config.waSession;
-    if (!sessionString) {
-        throw new Error('A variável de ambiente WA_SESSION_BASE64 está vazia.');
+    const sessionEnvVars = Object.keys(process.env)
+      .filter(key => key.startsWith(ENV_PREFIX));
+
+    if (sessionEnvVars.length === 0) {
+      logger.warn(`[HYDRATE] Nenhuma variável de ambiente com o prefixo '${ENV_PREFIX}' encontrada. O Baileys tentará gerar uma nova sessão.`);
+      // Não lançamos erro, permitimos que o Baileys tente o pareamento se for o caso.
+      return;
     }
 
-    logger.info(`[HYDRATE] String da sessão Base64 recebida com comprimento: ${sessionString.length}`);
-
-    // Decodifica a string Base64 para o conteúdo JSON da sessão
-    const sessionJsonContent = Buffer.from(sessionString, 'base64').toString('utf-8');
+    logger.info(`[HYDRATE] Encontradas ${sessionEnvVars.length} variáveis de sessão para hidratar.`);
     
-    // Escreve o conteúdo decodificado diretamente no arquivo creds.json
-    await fs.writeFile(CREDS_FILE_PATH, sessionJsonContent);
+    const hydratedFiles: string[] = [];
 
-    logger.info(`[HYDRATE] Sessão escrita em '${CREDS_FILE_PATH}' com sucesso.`);
+    for (const envVar of sessionEnvVars) {
+      const sessionData = process.env[envVar];
+      if (sessionData) {
+        const fileName = envVarToFileName(envVar);
+        const filePath = path.join(TEMP_SESSION_DIR, fileName);
+        const fileContent = Buffer.from(sessionData, 'base64');
+        
+        await fs.writeFile(filePath, fileContent);
+        hydratedFiles.push(fileName);
+      }
+    }
+
+    logger.info(`[HYDRATE] ✅ Sessão multi-arquivo hidratada com sucesso. Arquivos recriados: [${hydratedFiles.join(', ')}]`);
+
   } catch (error) {
-    logger.error({ error }, '[HYDRATE] Falha ao hidratar a sessão. Verifique se a WA_SESSION_BASE64 contém o conteúdo de um arquivo de sessão válido (creds.json).');
+    logger.error({ error }, '[HYDRATE] Falha crítica ao hidratar a sessão multi-arquivo.');
+    // Lançamos o erro para impedir que o Baileys inicie com um estado potencialmente corrompido.
     throw error;
   }
 }
