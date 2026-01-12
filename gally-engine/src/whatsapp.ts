@@ -37,31 +37,46 @@ export function getWAConnectionState(): WAConnectionState {
  * Hidrata a sessão a partir da variável de ambiente (Base64) para um arquivo local.
  */
 async function hydrateSession() {
-  logger.info(`[HYDRATE] Hidratando a sessão na pasta temporária: ${TEMP_SESSION_DIR}`);
+  logger.info(`[HYDRATE] Hidratando a sessão completa na pasta temporária: ${TEMP_SESSION_DIR}`);
   try {
-    // Usar fs.promises para operações assíncronas
+    // Limpa o diretório da sessão temporária
     await fs.rm(TEMP_SESSION_DIR, { recursive: true, force: true }).catch(err => {
       if (err.code !== 'ENOENT') throw err;
     });
     await fs.mkdir(TEMP_SESSION_DIR, { recursive: true });
 
-    let sessionString = config.waSession;
-    logger.info(`[HYDRATE] Original session string length from config: ${sessionString.length}`);
-    const sessionMarker = 'H4sI';
-    const markerIndex = sessionString.indexOf(sessionMarker);
-
-    if (markerIndex > 0) {
-      logger.info(`[HYDRATE] Prefixo encontrado na string de sessão. Removendo prefixo antes de "${sessionMarker}".`);
-      sessionString = sessionString.substring(markerIndex);
-    } else if (markerIndex === -1) {
-      logger.warn(`[HYDRATE] O marcador de sessão "${sessionMarker}" não foi encontrado. Usando a string de sessão como está, mas isso pode indicar um problema.`);
+    const sessionBundleString = config.waSession;
+    if (!sessionBundleString) {
+        throw new Error('A variável de ambiente WA_SESSION_BASE64 está vazia.');
     }
 
-    const sessionJson = Buffer.from(sessionString, 'base64').toString('utf-8');
-    await fs.writeFile(CREDS_FILE_PATH, sessionJson);
-    logger.info('[HYDRATE] Sessão hidratada com sucesso.');
+    logger.info(`[HYDRATE] String da sessão recebida com comprimento: ${sessionBundleString.length}`);
+
+    // Decodifica a string Base64 para a string JSON do bundle
+    const decodedBundle = Buffer.from(sessionBundleString, 'base64').toString('utf-8');
+    
+    // Parseia a string JSON para o objeto que contém os arquivos da sessão
+    const sessionFiles = JSON.parse(decodedBundle);
+
+    const fileNames = Object.keys(sessionFiles);
+    if (fileNames.length === 0) {
+        throw new Error('O bundle da sessão está vazio ou em formato inválido.');
+    }
+
+    logger.info(`[HYDRATE] Desempacotando ${fileNames.length} arquivos da sessão: [${fileNames.join(', ')}]`);
+
+    // Itera sobre cada arquivo no bundle e o escreve no disco
+    for (const fileName of fileNames) {
+      const fileContent = sessionFiles[fileName];
+      const filePath = path.join(TEMP_SESSION_DIR, fileName);
+      // O conteúdo já é um objeto JSON, então o stringify para salvar
+      await fs.writeFile(filePath, JSON.stringify(fileContent, null, 2));
+      logger.debug(`  - Arquivo '${fileName}' hidratado com sucesso.`);
+    }
+
+    logger.info('[HYDRATE] Sessão completa hidratada com sucesso.');
   } catch (error) {
-    logger.error({ error }, '[HYDRATE] Falha ao hidratar a sessão.');
+    logger.error({ error }, '[HYDRATE] Falha ao hidratar a sessão completa. Verifique se a WA_SESSION_BASE64 está no formato de bundle correto.');
     throw error;
   }
 }

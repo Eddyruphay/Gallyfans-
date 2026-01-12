@@ -15,9 +15,6 @@ function requireEnv(key: string): string {
     // The throw is for TypeScript's benefit to understand this function never returns undefined.
     throw new Error(`Missing required environment variable: ${key}`);
   }
-  if (key === 'WA_SESSION_BASE64') {
-    logger.info(`[CONFIG] WA_SESSION_BASE64 loaded with length: ${value.length}`);
-  }
   return value;
 }
 
