@@ -35,4 +35,9 @@ export const config = {
     proxyUrl: process.env.PROXY_URL,
     proxyUsername: process.env.PROXY_USERNAME,
     proxyPassword: process.env.PROXY_PASSWORD,
+
+    // Configurações de self-healing e deploy
+    renderApiKey: process.env.RENDER_API_KEY,
+    renderServiceId: process.env.RENDER_SERVICE_ID,
+    startupDelaySeconds: parseInt(process.env.STARTUP_DELAY_SECONDS || '10', 10),
 };
