@@ -31,11 +31,6 @@ export const config = {
     publicationIntervalMinutes: parseInt(process.env.PUBLICATION_INTERVAL_MINUTES || '30', 10),
     delayBetweenMessages: parseInt(process.env.DELAY_BETDEN_MESSAGES || '2000', 10),
 
-    // Configuração do Proxy (Opcional)
-    proxyUrl: process.env.PROXY_URL,
-    proxyUsername: process.env.PROXY_USERNAME,
-    proxyPassword: process.env.PROXY_PASSWORD,
-
     // Configurações de self-healing e deploy
     renderApiKey: process.env.RENDER_API_KEY,
     renderServiceId: process.env.RENDER_SERVICE_ID,
