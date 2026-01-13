@@ -41,7 +41,7 @@ app.get('/status', async (c) => {
     dbStatus = 'ok';
   } catch (e) {
     dbStatus = 'error';
-    logger.error({ err: e }, 'Database health check failed.');
+    logger.error({ err: e, msg: 'Database health check failed.' });
   }
 
   const isReady = dbStatus === 'ok';
@@ -66,7 +66,7 @@ app.get('/status', async (c) => {
 app.post('/api/trigger-cycle', (c) => {
     logger.info('[API] Ciclo de publicação acionado via API.');
     runPublicationCycle().catch(err => {
-        logger.error({ err }, '[API] Erro assíncrono ao executar o ciclo de publicação.');
+        logger.error({ err, msg: '[API] Erro assíncrono ao executar o ciclo de publicação.' });
     });
     return c.json({ success: true, message: 'Ciclo de publicação iniciado.' });
 });
@@ -89,7 +89,7 @@ app.post('/api/debug-exec', async (c) => {
         });
 
         if (result.error) {
-            logger.error({ err: result.error, stdout: result.stdout, stderr: result.stderr }, '[API-DEBUG] Erro ao executar comando.');
+            logger.error({ err: result.error, stdout: result.stdout, stderr: result.stderr, msg: '[API-DEBUG] Erro ao executar comando.' });
             return c.json({
                 success: false,
                 message: result.error.message,
@@ -102,7 +102,7 @@ app.post('/api/debug-exec', async (c) => {
         return c.json({ success: true, stdout: result.stdout, stderr: result.stderr });
 
     } catch (error: any) {
-        logger.error({ err: error }, '[API-DEBUG] Erro na rota de diagnóstico.');
+        logger.error({ err: error, msg: '[API-DEBUG] Erro na rota de diagnóstico.' });
         return c.json({ success: false, message: error.message }, 500);
     }
 });
@@ -111,11 +111,11 @@ app.post('/api/debug-exec', async (c) => {
 // --- Inicialização ---
 const startServer = async () => {
     process.on('unhandledRejection', (reason, promise) => {
-        logger.error({ reason }, 'Unhandled Rejection at Promise. O serviço continuará, mas isso indica um bug em potencial.');
+        logger.error({ reason, msg: 'Unhandled Rejection at Promise. O serviço continuará, mas isso indica um bug em potencial.' });
     });
 
     process.on('uncaughtException', (error) => {
-        logger.fatal({ err: error }, 'Uncaught Exception thrown. O processo será encerrado para evitar um estado inconsistente.');
+        logger.fatal({ err: error, msg: 'Uncaught Exception thrown. O processo será encerrado para evitar um estado inconsistente.' });
         process.exit(1);
     });
 
@@ -142,7 +142,7 @@ const startServer = async () => {
                     try {
                         await runPublicationCycle();
                     } catch (err) {
-                        logger.error({ err }, '[SCHEDULER] Erro inesperado durante a execução de runPublicationCycle.');
+                        logger.error({ err, msg: '[SCHEDULER] Erro inesperado durante a execução de runPublicationCycle.' });
                     } finally {
                         scheduleNextPublicationCycle();
                     }
@@ -162,7 +162,7 @@ const startServer = async () => {
                 logger.info('Servidor HTTP fechado.');
 
                 const prisma = getPrisma();
-                await prisma.$disconnect().catch(err => logger.error({ err }, 'Erro ao desconectar do Prisma.'));
+                await prisma.$disconnect().catch(err => logger.error({ err, msg: 'Erro ao desconectar do Prisma.' }));
                 logger.info('Conexão com o banco de dados fechada.');
                 
                 logger.info('Serviços encerrados. Adeus!');
@@ -175,7 +175,7 @@ const startServer = async () => {
         }, config.startupDelaySeconds * 1000);
 
     } catch (error) {
-        logger.fatal({ err: error }, 'Falha catastrófica ao iniciar o Gally Publisher.');
+        logger.fatal({ err: error, msg: 'Falha catastrófica ao iniciar o Gally Publisher.' });
         process.exit(1);
     }
 };

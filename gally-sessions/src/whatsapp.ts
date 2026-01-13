@@ -7,7 +7,8 @@ import makeWASocket, {
   WASocket,
   Browsers,
 } from '@whiskeysockets/baileys';
-import pino from 'pino';
+import pino_ from 'pino';
+const pino = pino_;
 import { Boom } from '@hapi/boom';
 import { config } from './config.js';
 import logger from './logger.js';
@@ -90,7 +91,7 @@ async function hydrateSession() {
     logger.info(`[HYDRATE] ✅ Sessão multi-arquivo hidratada com sucesso. Arquivos recriados: [${hydratedFiles.join(', ')}]`);
 
   } catch (error) {
-    logger.error({ error }, '[HYDRATE] Falha crítica ao hidratar a sessão multi-arquivo.');
+    logger.error({ error, msg: '[HYDRATE] Falha crítica ao hidratar a sessão multi-arquivo.' });
     throw error;
   }
 }
@@ -132,14 +133,14 @@ async function connectToWhatsApp() {
         }
 
       } catch (error) {
-        logger.error({ error }, '[WAPP] Falha no processo debounced de creds.update.');
+        logger.error({ error, msg: '[WAPP] Falha no processo debounced de creds.update.' });
       }
     }, 3000);
   };
 
   sock = makeWASocket({
     auth: state,
-    logger: pino({ level: 'debug' }),
+    logger: pino_({ level: 'debug' }),
     printQRInTerminal: false,
     browser: Browsers.ubuntu('Chrome'),
   });
@@ -227,7 +228,7 @@ export async function sendAlbum(jid: string, caption: string = '', imageUrls: st
         
         logger.info({ jid }, 'Envio de álbum concluído com sucesso.');
     } catch (error) {
-        logger.error({ err: error, jid }, 'Erro durante o envio do álbum.');
+        logger.error({ err: error, jid, msg: 'Erro durante o envio do álbum.' });
         throw error;
     }
 }
@@ -247,7 +248,7 @@ export async function sendTextMessage(jid: string, text: string) {
         await sock.sendMessage(jid, { text });
         logger.info({ jid }, 'Mensagem de texto enviada com sucesso.');
     } catch (error) {
-        logger.error({ err: error, jid }, 'Erro durante o envio da mensagem de texto.');
+        logger.error({ err: error, jid, msg: 'Erro durante o envio da mensagem de texto.' });
         throw error;
     }
 }

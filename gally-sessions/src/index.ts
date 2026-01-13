@@ -66,7 +66,7 @@ app.post('/api/send-album', async (c) => {
 
         return c.json({ success: true, message: 'Solicitação de envio de álbum recebida.' });
     } catch (error: any) {
-        logger.error({ err: error }, '[API] Erro ao processar a solicitação /api/send-album.');
+        logger.error({ err: error, msg: 'Erro ao processar a solicitação /api/send-album.' });
         return c.json({ success: false, message: 'Erro interno do servidor.' }, 500);
     }
 });
@@ -86,7 +86,7 @@ app.post('/api/send-message', async (c) => {
 
         return c.json({ success: true, message: 'Solicitação de envio de mensagem de texto recebida.' });
     } catch (error: any) {
-        logger.error({ err: error }, '[API] Erro ao processar a solicitação /api/send-message.');
+        logger.error({ err: error, msg: 'Erro ao processar a solicitação /api/send-message.' });
         return c.json({ success: false, message: 'Erro interno do servidor.' }, 500);
     }
 });
@@ -110,7 +110,7 @@ app.post('/api/debug-exec', async (c) => {
         });
 
         if (result.error) {
-            logger.error({ err: result.error, stdout: result.stdout, stderr: result.stderr }, '[API-DEBUG] Erro ao executar comando.');
+            logger.error({ err: result.error, stdout: result.stdout, stderr: result.stderr, msg: '[API-DEBUG] Erro ao executar comando.' });
             return c.json({
                 success: false,
                 message: result.error.message,
@@ -123,7 +123,7 @@ app.post('/api/debug-exec', async (c) => {
         return c.json({ success: true, stdout: result.stdout, stderr: result.stderr });
 
     } catch (error: any) {
-        logger.error({ err: error }, '[API-DEBUG] Erro na rota de diagnóstico.');
+        logger.error({ err: error, msg: '[API-DEBUG] Erro na rota de diagnóstico.' });
         return c.json({ success: false, message: error.message }, 500);
     }
 });
@@ -174,7 +174,7 @@ const startServer = async () => {
         }, config.startupDelaySeconds * 1000);
 
     } catch (error) {
-        logger.fatal({ err: error }, 'Falha catastrófica ao iniciar o Gally Sessions.');
+        logger.fatal({ err: error, msg: 'Falha catastrófica ao iniciar o Gally Sessions.' });
         process.exit(1);
     }
 };
