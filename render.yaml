@@ -13,7 +13,7 @@ services:
     plan: free
     rootDir: ./gally-sessions
     buildCommand: "pnpm install && pnpm build"
-    startCommand: "pnpm start"
+    startCommand: "cat package.json"
 
   # -------------------------------------------------
   # Service: gally-publisher
