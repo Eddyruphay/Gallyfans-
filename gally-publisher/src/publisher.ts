@@ -1,6 +1,6 @@
 import { getPrisma } from './db.js';
 import logger from './logger.js';
-import { sendAlbum } from './whatsapp.js';
+import { sendAlbumToSessions } from './sessions-api.js';
 import { config } from './config.js';
 
 const prisma = getPrisma();
@@ -17,8 +17,6 @@ interface JobPayload {
 
 /**
  * Busca o próximo job pendente na fila e o trava para processamento.
- * A lógica foi simplificada para apenas buscar o job, pois todos os dados
- * necessários agora estão contidos no próprio payload do job.
  */
 async function getNextJob() {
   try {
@@ -75,7 +73,6 @@ export async function runPublicationCycle() {
   try {
     job = await getNextJob();
 
-    // Se não houver job, o ciclo termina silenciosamente.
     if (!job) {
       logger.info('[PUBLISHER] No pending jobs found.');
       return;
@@ -83,7 +80,6 @@ export async function runPublicationCycle() {
 
     logger.info({ jobId: job.id }, `[PUBLISHER] Processing job for gallery ID: ${job.gallery_id}`);
 
-    // Validação robusta do payload do job
     if (!job.images || typeof job.images !== 'object' || Array.isArray(job.images)) {
       throw new Error('Job payload (images field) is missing or not a valid JSON object.');
     }
@@ -100,7 +96,6 @@ export async function runPublicationCycle() {
     const { imageUrls, captionData } = payload;
     const { edition, by, models } = captionData;
 
-    // Construir a legenda final com base nos dados do job
     const captionLines = [
       `Edição: ${edition}`,
       `By: ${by}`,
@@ -110,9 +105,10 @@ export async function runPublicationCycle() {
     ];
     const finalCaption = captionLines.join('\n');
 
-    logger.info({ jobId: job.id }, `Publishing album with ${imageUrls.length} images.`);
+    logger.info({ jobId: job.id }, `Publishing album with ${imageUrls.length} images via gally-sessions.`);
 
-    await sendAlbum(config.targetChannelId, finalCaption, imageUrls);
+    // A chamada agora é para a API do nosso outro serviço
+    await sendAlbumToSessions(config.targetChannelId, finalCaption, imageUrls);
 
     await updateJobStatus(job.id, 'published');
     logger.info({ jobId: job.id }, '[PUBLISHER] Job finished successfully.');

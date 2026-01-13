@@ -1,39 +1,42 @@
-# This is the single source of truth for deploying services to Render.
-services:
-  # The gallyfans-worker is a Web Service to have a public URL for the keep-alive ping.
-  # This prevents the free instance from spinning down and losing the WhatsApp session.
-  - type: web
-    name: gallyfans-worker
-    env: node
-    region: frankfurt
-    plan: free
-    # The build and start commands are run from the root of the repository.
-    buildCommand: "npm install && npm run build"
-    startCommand: "npm start"
-    healthCheckPath: /health
-    envVars:
-      - fromGroup: 4Reels-secrets # Assumes the new REDIS_* vars are in this group
+# render.yaml - Blueprint for the 4Reels Microservices Architecture
 
-  # The new whatsapp-sender microservice
+services:
+  # -------------------------------------------------
+  # Service: gally-sessions
+  # Description: Manages the WhatsApp connection and provides an API for sending messages.
+  # It's a long-running service that maintains the session state.
+  # -------------------------------------------------
   - type: web
-    name: whatsapp-sender
+    name: gally-sessions
     env: node
     region: oregon
     plan: free
-    rootDir: ./whatsapp-sender
+    rootDir: ./gally-sessions
     buildCommand: "npm install && npm run build"
     startCommand: "npm run start"
-    healthCheckPath: /
+    healthCheckPath: /health
     envVars:
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: session-memory
-      - fromGroup: 4Reels-secrets # For API_KEY and WA_SESSION_BASE64
+      - fromGroup: 4Reels-secrets # Contains API_KEY, RENDER_API_KEY, and all WA_SESSION_* vars
+      # The RENDER_SERVICE_ID for this service must be set manually in the Render dashboard
+      # after the first deployment, so it can update its own session.
 
-  # The Redis instance used for distributed locking.
-  - type: redis
-    name: session-memory
+  # -------------------------------------------------
+  # Service: gally-publisher
+  # Description: Fetches publication jobs from the database and uses gally-sessions
+  # to send them to WhatsApp. This service runs the core business logic.
+  # -------------------------------------------------
+  - type: web
+    name: gally-publisher
+    env: node
     region: oregon
     plan: free
-    ipAllowList: [] # Open for development. Can be restricted later.
+    rootDir: ./gally-publisher
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm run start"
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: 4Reels-secrets # Contains DATABASE_URL, API_KEY, TARGET_CHANNEL_ID
+      - key: GALLY_SESSIONS_API_URL
+        fromService:
+          type: web
+          name: gally-sessions

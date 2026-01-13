@@ -15,34 +15,25 @@ import logger from './logger.js';
 import { updateWaSessionOnRender } from './render-api.js';
 
 const TEMP_SESSION_DIR = './temp_session';
-const CREDS_FILE_PATH = path.join(TEMP_SESSION_DIR, 'creds.json');
 let sock: WASocket | undefined;
 let credsUpdateDebounceTimeout: NodeJS.Timeout | null = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_DELAY = 5 * 60 * 1000; // 5 minutos
 
+const ENV_PREFIX = 'WA_SESSION_';
+
 // --- State Machine ---
 export type WAConnectionState = 'CONNECTING' | 'OPEN' | 'CLOSED' | 'ERROR';
 let currentState: WAConnectionState = 'CLOSED';
 
-/**
- * Returns the current state of the WhatsApp connection.
- */
 export function getWAConnectionState(): WAConnectionState {
   return currentState;
 }
 // ---------------------
 
 /**
- * Hidrata a sessão a partir da variável de ambiente (Base64) para um arquivo local.
- */
-const ENV_PREFIX = 'WA_SESSION_';
-
-/**
- * Converte um nome de variável de ambiente de volta para um nome de arquivo.
+ * Converte um nome de variável de ambiente para um nome de arquivo.
  * Ex: 'WA_SESSION_CREDS_JSON' -> 'creds.json'
- * @param envVar O nome da variável de ambiente.
- * @returns O nome do arquivo original.
  */
 function envVarToFileName(envVar: string): string {
   return envVar
@@ -52,13 +43,21 @@ function envVarToFileName(envVar: string): string {
 }
 
 /**
+ * Converte um nome de arquivo para um nome de variável de ambiente.
+ * Ex: 'creds.json' -> 'WA_SESSION_CREDS_JSON'
+ */
+function fileNameToEnvVar(fileName: string): string {
+    return `${ENV_PREFIX}${fileName.replace(/\./g, '_').toUpperCase()}`;
+}
+
+
+/**
  * Hidrata a sessão completa a partir de múltiplas variáveis de ambiente.
  */
 async function hydrateSession() {
   logger.info(`[HYDRATE] Iniciando hidratação da sessão multi-arquivo a partir das variáveis de ambiente...`);
   
   try {
-    // Limpa o diretório da sessão temporária
     await fs.rm(TEMP_SESSION_DIR, { recursive: true, force: true }).catch(err => {
       if (err.code !== 'ENOENT') throw err;
     });
@@ -69,7 +68,6 @@ async function hydrateSession() {
 
     if (sessionEnvVars.length === 0) {
       logger.warn(`[HYDRATE] Nenhuma variável de ambiente com o prefixo '${ENV_PREFIX}' encontrada. O Baileys tentará gerar uma nova sessão.`);
-      // Não lançamos erro, permitimos que o Baileys tente o pareamento se for o caso.
       return;
     }
 
@@ -93,7 +91,6 @@ async function hydrateSession() {
 
   } catch (error) {
     logger.error({ error }, '[HYDRATE] Falha crítica ao hidratar a sessão multi-arquivo.');
-    // Lançamos o erro para impedir que o Baileys inicie com um estado potencialmente corrompido.
     throw error;
   }
 }
@@ -107,23 +104,37 @@ async function connectToWhatsApp() {
 
   const { state, saveCreds } = await useMultiFileAuthState(TEMP_SESSION_DIR);
 
-  // Função debounced para salvar e persistir as credenciais
   const debouncedCredsUpdate = () => {
     if (credsUpdateDebounceTimeout) {
       clearTimeout(credsUpdateDebounceTimeout);
     }
     credsUpdateDebounceTimeout = setTimeout(async () => {
       try {
-        logger.info('[WAPP] Debounced creds.update: Salvando e persistindo sessão...');
+        logger.info('[WAPP] Debounced creds.update: Salvando e persistindo sessão multi-arquivo...');
         await saveCreds();
-        const updatedCreds = await fs.readFile(CREDS_FILE_PATH, 'utf-8');
-        const sessionBase64 = Buffer.from(updatedCreds).toString('base64');
-        await updateWaSessionOnRender(sessionBase64);
-        logger.info('[WAPP] Sessão salva e persistida na nuvem com sucesso.');
+
+        const sessionFiles = await fs.readdir(TEMP_SESSION_DIR);
+        const envVarsToUpdate = [];
+
+        for (const fileName of sessionFiles) {
+            const filePath = path.join(TEMP_SESSION_DIR, fileName);
+            const fileContent = await fs.readFile(filePath);
+            const base64Content = fileContent.toString('base64');
+            const envVarKey = fileNameToEnvVar(fileName);
+            envVarsToUpdate.push({ key: envVarKey, value: base64Content });
+        }
+        
+        if (envVarsToUpdate.length > 0) {
+            await updateWaSessionOnRender(envVarsToUpdate);
+            logger.info(`[WAPP] Sessão multi-arquivo (${envVarsToUpdate.length} arquivos) salva e persistida na nuvem com sucesso.`);
+        } else {
+            logger.warn('[WAPP] Nenhum arquivo de sessão encontrado para persistir.');
+        }
+
       } catch (error) {
         logger.error({ error }, '[WAPP] Falha no processo debounced de creds.update.');
       }
-    }, 3000); // Aguarda 3 segundos após o último evento
+    }, 3000);
   };
 
   sock = makeWASocket({
@@ -144,8 +155,6 @@ async function connectToWhatsApp() {
         currentState = newState;
         logger.info(`[WAPP] Status da conexão alterado para: ${currentState}`);
       }
-    } else {
-      logger.info(`[WAPP] Recebido evento de conexão intermediário (sem status definido).`);
     }
 
     if (connection === 'close') {
@@ -162,7 +171,7 @@ async function connectToWhatsApp() {
         logger.error('❌ SESSÃO DESLOGADA. É necessário gerar uma nova sessão e atualizar a variável de ambiente.');
       }
     } else if (connection === 'open') {
-      reconnectAttempts = 0; // Reseta as tentativas ao conectar com sucesso
+      reconnectAttempts = 0;
       currentState = 'OPEN';
       logger.info('✅ Conexão com o WhatsApp estabelecida!');
     }
@@ -190,58 +199,48 @@ export async function closeWhatsApp() {
 
 /**
  * Envia um álbum de imagens para um JID específico.
- * A primeira imagem recebe a legenda, as outras um espaço.
- * @param jid O JID do destinatário.
- * @param caption A legenda para a primeira imagem.
- * @param images Um array de URLs de imagem.
  */
-export async function sendAlbum(jid: string, caption: string = '', images: string[]) {
-    logger.info({ jid, imageCount: images.length }, 'Iniciando envio de álbum...');
+export async function sendAlbum(jid: string, caption: string = '', imageUrls: string[]) {
+    logger.info({ jid, imageCount: imageUrls.length }, 'Iniciando envio de álbum...');
 
-    if (!sock || !sock.user) {
-        logger.error('[WAPP] Tentativa de envio de álbum com o WhatsApp não conectado ou não autenticado.');
-        throw new Error('WhatsApp não está conectado ou autenticado.');
+    if (currentState !== 'OPEN' || !sock) {
+        logger.error('[WAPP] Tentativa de envio de álbum com o WhatsApp não conectado.');
+        throw new Error('WhatsApp não está conectado.');
     }
 
     try {
-        for (let i = 0; i < images.length; i++) {
-            const imageUrl = images[i];
-            const isFirstImage = i === 0;
-            const messageCaption = isFirstImage ? caption : undefined;
+        // Envia a primeira imagem com a legenda
+        await sock.sendMessage(jid, {
+            image: { url: imageUrls[0] },
+            caption: caption,
+        });
+        logger.info(`Imagem 1/${imageUrls.length} enviada com legenda.`);
 
-            logger.info(`Enviando imagem ${i + 1}/${images.length} para ${jid}`);
-            
+        // Envia as imagens restantes sem legenda
+        for (let i = 1; i < imageUrls.length; i++) {
+            await new Promise(resolve => setTimeout(resolve, config.delayBetweenMessages));
             await sock.sendMessage(jid, {
-                image: { url: imageUrl },
-                caption: messageCaption,
+                image: { url: imageUrls[i] },
             });
-
-            logger.info(`Imagem ${i + 1} enviada.`);
-
-            // Adiciona um delay entre as imagens para evitar bloqueio e garantir a ordem
-            if (i < images.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, config.delayBetweenMessages));
-            }
+            logger.info(`Imagem ${i + 1}/${imageUrls.length} enviada.`);
         }
+        
         logger.info({ jid }, 'Envio de álbum concluído com sucesso.');
     } catch (error) {
         logger.error({ err: error, jid }, 'Erro durante o envio do álbum.');
-        // Lança o erro para que o chamador (se houver) possa tratá-lo.
         throw error;
     }
 }
 
 /**
  * Envia uma mensagem de texto simples.
- * @param jid O JID do destinatário.
- * @param text O texto a ser enviado.
  */
 export async function sendTextMessage(jid: string, text: string) {
     logger.info({ jid }, 'Iniciando envio de mensagem de texto...');
 
-    if (!sock || !sock.user) {
-        logger.error('[WAPP] Tentativa de envio de texto com o WhatsApp não conectado ou não autenticado.');
-        throw new Error('WhatsApp não está conectado ou autenticado.');
+    if (currentState !== 'OPEN' || !sock) {
+        logger.error('[WAPP] Tentativa de envio de texto com o WhatsApp não conectado.');
+        throw new Error('WhatsApp não está conectado.');
     }
 
     try {

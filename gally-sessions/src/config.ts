@@ -18,16 +18,13 @@ function requireEnv(key: string): string {
   return value;
 }
 
-// Unified configuration for the Gally Engine
+// Unified configuration for the Gally Sessions
 export const config = {
   // Required variables
-  databaseUrl: requireEnv('DATABASE_URL'),
-  targetChannelId: requireEnv('TARGET_CHANNEL_ID'),
   apiKey: requireEnv('API_KEY'),
 
   // Optional variables with defaults
   port: Number(process.env.PORT || 3000),
-    publicationIntervalMinutes: parseInt(process.env.PUBLICATION_INTERVAL_MINUTES || '30', 10),
     delayBetweenMessages: parseInt(process.env.DELAY_BETDEN_MESSAGES || '2000', 10),
 
     // Configurações de self-healing e deploy
