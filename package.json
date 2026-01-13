@@ -1,7 +1,6 @@
 {
   "name": "4reels-monorepo",
   "private": true,
-  "packageManager": "npm@10.8.2",
   "version": "1.0.0",
   "description": "Monorepo for the 4Reels project.",
   "main": "index.js",
