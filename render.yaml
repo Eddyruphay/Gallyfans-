@@ -12,7 +12,7 @@ services:
     region: oregon
     plan: free
     buildCommand: "npm install -g pnpm && pnpm install && cd gally-sessions && pnpm build"
-    startCommand: "cd gally-sessions && pnpm start"
+    startCommand: "cd gally-sessions && cat package.json"
 
   # -------------------------------------------------
   # Service: gally-publisher
