@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "packages": [
+  "workspaces": [
     "gally-sessions",
     "gally-publisher"
   ],

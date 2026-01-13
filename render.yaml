@@ -11,7 +11,7 @@ services:
     region: oregon
     plan: free
     # Build and start commands are run from the root of the monorepo.
-    buildCommand: "npm install && npm run build:sessions"
+    buildCommand: "npm install --workspaces && npm run build:sessions"
     startCommand: "npm run start:sessions"
     healthCheckPath: /health
     envVars:
@@ -30,7 +30,7 @@ services:
     region: oregon
     plan: free
     # Build and start commands are run from the root of the monorepo.
-    buildCommand: "npm install && npm run build:publisher"
+    buildCommand: "npm install --workspaces && npm run build:publisher"
     startCommand: "npm run start:publisher"
     healthCheckPath: /health
     envVars:
