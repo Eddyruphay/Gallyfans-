@@ -40,3 +40,4 @@ services:
         fromService:
           type: web
           name: gally-sessions
+          property: url
