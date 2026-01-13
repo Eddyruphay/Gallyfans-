@@ -1,5 +1,4 @@
-import pino_ from 'pino';
-const pino = pino_;
+import pino from 'pino';
 
 // Define a base logger configuration
 const baseConfig: pino.LoggerOptions = {

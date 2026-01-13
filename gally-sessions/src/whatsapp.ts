@@ -7,8 +7,7 @@ import makeWASocket, {
   WASocket,
   Browsers,
 } from '@whiskeysockets/baileys';
-import pino_ from 'pino';
-const pino = pino_;
+import pino from 'pino';
 import { Boom } from '@hapi/boom';
 import { config } from './config.js';
 import logger from './logger.js';
