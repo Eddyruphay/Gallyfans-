@@ -1,9 +1,5 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "workspaces": [
-    "gally-sessions",
-    "gally-publisher"
-  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
