@@ -11,9 +11,8 @@ services:
     env: node
     region: oregon
     plan: free
-    rootDir: ./gally-sessions
-    buildCommand: "pnpm install && pnpm build"
-    startCommand: "cat package.json"
+    buildCommand: "npm install -g pnpm && pnpm install && cd gally-sessions && pnpm build"
+    startCommand: "cd gally-sessions && pnpm start"
 
   # -------------------------------------------------
   # Service: gally-publisher
@@ -25,9 +24,8 @@ services:
     env: node
     region: oregon
     plan: free
-    rootDir: ./gally-publisher
-    buildCommand: "pnpm install && pnpm build"
-    startCommand: "pnpm start"
+    buildCommand: "npm install -g pnpm && pnpm install && cd gally-publisher && pnpm build"
+    startCommand: "cd gally-publisher && pnpm start"
     healthCheckPath: /health
     envVars:
       - fromGroup: 4Reels-secrets # Contains DATABASE_URL, API_KEY, TARGET_CHANNEL_ID
