@@ -12,7 +12,7 @@ services:
     region: oregon
     plan: free
     # Build and start commands are run from the root of the monorepo.
-    buildCommand: "npm install && npx turbo list && npx turbo run build --filter=gally-sessions"
+    buildCommand: "npm install -g pnpm && pnpm install && pnpm --filter gally-sessions build"
     startCommand: "npm run start:sessions"
     healthCheckPath: /health
     envVars:
@@ -31,7 +31,7 @@ services:
     region: oregon
     plan: free
     # Build and start commands are run from the root of the monorepo.
-    buildCommand: "npm install && npx turbo list && npx turbo run build --filter=gally-publisher"
+    buildCommand: "npm install -g pnpm && pnpm install && pnpm --filter gally-publisher build"
     startCommand: "npm run start:publisher"
     healthCheckPath: /health
     envVars:
