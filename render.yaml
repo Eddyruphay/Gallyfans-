@@ -13,7 +13,7 @@ services:
     plan: free
     # Build and start commands are run from the root of the monorepo.
     buildCommand: "echo 'Fase 1: Forçando a limpeza do estado do build...'"
-    startCommand: "npm run start:sessions"
+    startCommand: "pnpm --filter gally-sessions start"
     healthCheckPath: /health
     envVars:
       - fromGroup: 4Reels-secrets # Contains API_KEY, RENDER_API_KEY, and all WA_SESSION_* vars
@@ -32,7 +32,7 @@ services:
     plan: free
     # Build and start commands are run from the root of the monorepo.
     buildCommand: "echo 'Fase 1: Forçando a limpeza do estado do build...'"
-    startCommand: "npm run start:publisher"
+    startCommand: "pnpm --filter gally-publisher start"
     healthCheckPath: /health
     envVars:
       - fromGroup: 4Reels-secrets # Contains DATABASE_URL, API_KEY, TARGET_CHANNEL_ID
