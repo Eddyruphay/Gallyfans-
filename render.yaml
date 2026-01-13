@@ -12,7 +12,7 @@ services:
     region: oregon
     plan: free
     # Build and start commands are run from the root of the monorepo.
-    buildCommand: "npm install -g pnpm && pnpm install && pnpm --filter gally-sessions build"
+    buildCommand: "echo 'Fase 1: Forçando a limpeza do estado do build...'"
     startCommand: "npm run start:sessions"
     healthCheckPath: /health
     envVars:
@@ -31,7 +31,7 @@ services:
     region: oregon
     plan: free
     # Build and start commands are run from the root of the monorepo.
-    buildCommand: "npm install -g pnpm && pnpm install && pnpm --filter gally-publisher build"
+    buildCommand: "echo 'Fase 1: Forçando a limpeza do estado do build...'"
     startCommand: "npm run start:publisher"
     healthCheckPath: /health
     envVars:
