@@ -37,7 +37,4 @@ services:
     envVars:
       - fromGroup: 4Reels-secrets # Contains DATABASE_URL, API_KEY, TARGET_CHANNEL_ID
       - key: GALLY_SESSIONS_API_URL
-        fromService:
-          type: web
-          name: gally-sessions
-          property: url
+        value: http://gally-sessions
