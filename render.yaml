@@ -7,14 +7,13 @@ services:
   # Description: Manages the WhatsApp connection and provides an API for sending messages.
   # -------------------------------------------------
   - type: web
-    # Build and start commands are run from the root of the monorepo.
-    buildCommand: "ls -laR"
-    startCommand: "pwd && ls -la && pnpm --filter gally-sessions start"
-    healthCheckPath: /health
-    envVars:
-      - fromGroup: 4Reels-secrets # Contains API_KEY, RENDER_API_KEY, and all WA_SESSION_* vars
-      # The RENDER_SERVICE_ID for this service must be set manually in the Render dashboard
-      # after the first deployment, so it can update its own session.
+    name: gally-sessions
+    env: node
+    region: oregon
+    plan: free
+    rootDir: ./gally-sessions
+    buildCommand: "pnpm install && pnpm build"
+    startCommand: "pnpm start"
 
   # -------------------------------------------------
   # Service: gally-publisher
@@ -26,9 +25,9 @@ services:
     env: node
     region: oregon
     plan: free
-    # Build and start commands are run from the root of the monorepo.
-    buildCommand: "ls -laR"
-    startCommand: "pwd && ls -la && pnpm --filter gally-publisher start"
+    rootDir: ./gally-publisher
+    buildCommand: "pnpm install && pnpm build"
+    startCommand: "pnpm start"
     healthCheckPath: /health
     envVars:
       - fromGroup: 4Reels-secrets # Contains DATABASE_URL, API_KEY, TARGET_CHANNEL_ID
