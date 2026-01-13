@@ -1,14 +1,18 @@
 {
-  "name": "4reels",
+  "name": "4reels-monorepo",
   "private": true,
   "packageManager": "npm@10.8.2",
   "version": "1.0.0",
-  "description": "Scripts and tools for the 4Reels project.",
-  "main": "dist/index.js",
+  "description": "Monorepo for the 4Reels project.",
+  "main": "index.js",
   "directories": {
     "doc": "docs"
   },
   "type": "module",
+  "workspaces": [
+    "gally-sessions",
+    "gally-publisher"
+  ],
   "dependencies": {
     "@hapi/boom": "^10.0.1",
     "@hono/node-server": "^1.19.7",
@@ -49,9 +53,12 @@
     "typescript-eslint": "^8.48.0"
   },
   "scripts": {
-    "start": "node gally-engine/dist/index.js",
+    "build": "turbo run build",
+    "build:sessions": "cd gally-sessions && npm run build",
+    "start:sessions": "cd gally-sessions && npm run start",
+    "build:publisher": "cd gally-publisher && npm run build",
+    "start:publisher": "cd gally-publisher && npm run start",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npx prisma generate && tsc -p gally-engine/tsconfig.json",
     "depcheck": "depcheck",
     "lint": "eslint . --ext .ts,.mts",
     "format": "prettier --write ."

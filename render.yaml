@@ -4,16 +4,15 @@ services:
   # -------------------------------------------------
   # Service: gally-sessions
   # Description: Manages the WhatsApp connection and provides an API for sending messages.
-  # It's a long-running service that maintains the session state.
   # -------------------------------------------------
   - type: web
     name: gally-sessions
     env: node
     region: oregon
     plan: free
-    rootDir: ./gally-sessions
-    buildCommand: "npm install && npm run build"
-    startCommand: "npm run start"
+    # Build and start commands are run from the root of the monorepo.
+    buildCommand: "npm install && npm run build:sessions"
+    startCommand: "npm run start:sessions"
     healthCheckPath: /health
     envVars:
       - fromGroup: 4Reels-secrets # Contains API_KEY, RENDER_API_KEY, and all WA_SESSION_* vars
@@ -23,16 +22,16 @@ services:
   # -------------------------------------------------
   # Service: gally-publisher
   # Description: Fetches publication jobs from the database and uses gally-sessions
-  # to send them to WhatsApp. This service runs the core business logic.
+  # to send them to WhatsApp.
   # -------------------------------------------------
   - type: web
     name: gally-publisher
     env: node
     region: oregon
     plan: free
-    rootDir: ./gally-publisher
-    buildCommand: "npm install && npm run build"
-    startCommand: "npm run start"
+    # Build and start commands are run from the root of the monorepo.
+    buildCommand: "npm install && npm run build:publisher"
+    startCommand: "npm run start:publisher"
     healthCheckPath: /health
     envVars:
       - fromGroup: 4Reels-secrets # Contains DATABASE_URL, API_KEY, TARGET_CHANNEL_ID
