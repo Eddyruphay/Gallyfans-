@@ -1,0 +1,40 @@
+# Node / JS
+node_modules/
+dist/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Environment / Secrets
+.env
+.env.*
+session/           # Sessões do WhatsApp
+baileys_auth_temp/ # Auth temporário
+.warmed_session/   # Sessões temporárias
+
+# Caches
+.cache/
+.rpt2_cache/
+.rts2_cache_*
+.parcel-cache
+
+# Sistema / Editor
+.DS_Store
+.vscode/
+.idea/
+
+# SQLite / DB temporários
+*.sqlite
+*.sqlite-journal
+
+# Imagens baixadas temporárias / artefatos
+downloaded_image.jpg
+image_links.txt
+model_page.html
+
+# Scripts temporários / logs antigos
+hunter_log/
+locks/

@@ -1,0 +1,19 @@
+name: Keep Alive
+
+on:
+  schedule:
+    # Runs every 14 minutes
+    - cron: '*/14 * * * *'
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Health Check URL
+        run: |
+          if [ -n "${{ secrets.RENDER_HEALTH_CHECK_URL }}" ]; then
+            curl -sfS "${{ secrets.RENDER_HEALTH_CHECK_URL }}" > /dev/null
+            echo "Ping sent successfully."
+          else
+            echo "RENDER_HEALTH_CHECK_URL secret not set. Skipping ping."
+          fi

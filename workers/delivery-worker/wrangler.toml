@@ -1,0 +1,19 @@
+name = "delivery-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Adicionar um Cron Trigger para que o worker rode periodicamente (e.g., a cada minuto).
+[triggers]
+crons = ["* * * * *"]
+
+# Binding para a base de dados D1, de onde os jobs prontos são lidos.
+[[d1_databases]]
+binding = "DB"
+database_name = "gallyfans-db"
+database_id = "<D1_DATABASE_ID>" # A ser preenchido com o ID real
+
+# Segredos que serão injetados no ambiente do worker.
+# Estes valores devem ser configurados no dashboard da Cloudflare ou via 'wrangler secret put'.
+[vars]
+GATEWAY_URL = "http://localhost:3000" # Placeholder
+GATEWAY_AUTH_TOKEN = "change-me" # Placeholder

@@ -1,0 +1,26 @@
+name = "director-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Binding para a base de dados D1, onde os jobs finalizados são salvos.
+[[d1_databases]]
+binding = "DB"
+database_name = "gallyfans-db"
+database_id = "<D1_DATABASE_ID>" # A ser preenchido com o ID real
+
+# Binding para o Durable Object que coordena o ciclo de vida dos jobs.
+[durable_objects]
+bindings = [
+  { name = "JOB_COORDINATOR", class_name = "JobCoordinator" }
+]
+
+# Migração para fazer o upload da classe do Durable Object.
+# O 'script_name' deve ser o de um worker que "exporta" o DO.
+# Vamos designar o 'director-worker' para esta tarefa.
+[[migrations]]
+tag = "v1-do"
+new_classes = ["JobCoordinator"]
+
+[vars]
+# O ID do grupo de destino é passado como uma variável de ambiente para o worker.
+TARGET_GROUP_ID = "your-whatsapp-group-id@g.us"
