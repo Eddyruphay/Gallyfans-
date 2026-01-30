@@ -27,6 +27,8 @@ jobs:
         run: pnpm install
 
       - name: Configure ${{ matrix.worker }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           sed -i "s|<D1_DATABASE_ID>|${{ secrets.D1_DATABASE_ID }}|g" wrangler.toml
           if [ "${{ matrix.worker }}" = "director-worker" ]; then
