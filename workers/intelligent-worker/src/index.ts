@@ -61,7 +61,7 @@ export default {
         { headers: { 'Content-Type': 'application/json' } }
       );
 
-    } catch (error: any)
+    } catch (error: any) {
       console.error("❌ Erro no Intelligent Worker:", error);
       return new Response(error.message, { status: 500 });
     }

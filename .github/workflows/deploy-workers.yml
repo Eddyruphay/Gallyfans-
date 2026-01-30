@@ -1,88 +1,44 @@
-# .github/workflows/deploy-workers.yml
-
 name: Deploy Cloudflare Workers
 
 on:
   push:
     branches:
       - main
-      - master
-  workflow_dispatch: # Permite o acionamento manual
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy Changed Workers
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 2 # Necessário para comparar com o commit anterior
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 8
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install
-
-      # Identifica os diretórios dos workers que foram modificados.
-      - name: Find Changed Workers
-        id: changed-workers
-        run: |
-          changed_dirs=$(git diff --name-only HEAD~1 HEAD | grep -o 'workers/[^/]*' | sort -u)
-          if [ -z "$changed_dirs" ]; then
-            echo "No workers changed. Skipping deployment."
-            echo "workers-to-deploy=[]" >> $GITHUB_OUTPUT
-          else
-            # Converter a lista de diretórios para um array JSON para a matriz
-            json_array=$(echo "$changed_dirs" | jq -R -s -c 'split("\n") | map(select(length > 0))')
-            echo "workers-to-deploy=${json_array}" >> $GITHUB_OUTPUT
-          fi
-
-    # Um job separado para fazer o deploy, usando uma matriz de estratégia.
-    # Isto cria um job de deploy para cada worker modificado, tornando os logs mais limpos.
-  deploy-matrix:
-    needs: deploy
-    if: fromJson(needs.deploy.outputs.workers-to-deploy)[0] != null
-    runs-on: ubuntu-latest
     strategy:
       matrix:
-        worker: ${{ fromJson(needs.deploy.outputs.workers-to-deploy) }}
+        worker: [intelligent-worker, content-worker, director-worker, delivery-worker]
     
+    name: Deploy ${{ matrix.worker }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
         with:
           version: 8
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: '18'
           cache: 'pnpm'
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: pnpm install
 
-      - name: Deploy ${{ matrix.worker }}
-        env:
-          # O CLOUDFLARE_API_TOKEN é necessário para autenticar com a API da Cloudflare.
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          # O CLOUDFLARE_ACCOUNT_ID especifica para qual conta o deploy será feito.
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          echo ">>> Deploying ${{ matrix.worker }}... <<<"
-          cd ${{ matrix.worker }}
-          pnpm wrangler deploy
+      - name: Configure and Deploy ${{ matrix.worker }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: workers/${{ matrix.worker }}
+          command: |
+            sed -i "s|<D1_DATABASE_ID>|${{ secrets.D1_DATABASE_ID }}|g" wrangler.toml
+            if [ "${{ matrix.worker }}" = "director-worker" ]; then
+              sed -i "s|your-whatsapp-group-id@g.us|${{ secrets.TARGET_GROUP_ID }}|g" wrangler.toml
+            fi
+            if [ "${{ matrix.worker }}" = "delivery-worker" ]; then
+              sed -i "s|http://localhost:3000|${{ secrets.GATEWAY_URL }}|g" wrangler.toml
+              echo "${{ secrets.GATEWAY_AUTH_TOKEN }}" | wrangler secret put GATEWAY_AUTH_TOKEN
+            fi
+            wrangler deploy
