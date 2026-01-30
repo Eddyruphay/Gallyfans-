@@ -26,19 +26,22 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Configure and Deploy ${{ matrix.worker }}
+      - name: Configure ${{ matrix.worker }}
+        run: |
+          sed -i "s|<D1_DATABASE_ID>|${{ secrets.D1_DATABASE_ID }}|g" wrangler.toml
+          if [ "${{ matrix.worker }}" = "director-worker" ]; then
+            sed -i "s|your-whatsapp-group-id@g.us|${{ secrets.TARGET_GROUP_ID }}|g" wrangler.toml
+          fi
+          if [ "${{ matrix.worker }}" = "delivery-worker" ]; then
+            sed -i "s|http://localhost:3000|${{ secrets.GATEWAY_URL }}|g" wrangler.toml
+            echo "${{ secrets.GATEWAY_AUTH_TOKEN }}" | npx wrangler secret put GATEWAY_AUTH_TOKEN
+          fi
+        working-directory: workers/${{ matrix.worker }}
+
+      - name: Deploy ${{ matrix.worker }}
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: workers/${{ matrix.worker }}
-          command: |
-            sed -i "s|<D1_DATABASE_ID>|${{ secrets.D1_DATABASE_ID }}|g" wrangler.toml
-            if [ "${{ matrix.worker }}" = "director-worker" ]; then
-              sed -i "s|your-whatsapp-group-id@g.us|${{ secrets.TARGET_GROUP_ID }}|g" wrangler.toml
-            fi
-            if [ "${{ matrix.worker }}" = "delivery-worker" ]; then
-              sed -i "s|http://localhost:3000|${{ secrets.GATEWAY_URL }}|g" wrangler.toml
-              echo "${{ secrets.GATEWAY_AUTH_TOKEN }}" | wrangler secret put GATEWAY_AUTH_TOKEN
-            fi
-            wrangler deploy
+          command: deploy
