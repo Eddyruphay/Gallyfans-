@@ -17,4 +17,4 @@ bindings = [
 
 [[migrations]]
 tag = "v1-do"
-new_classes = ["JobCoordinator"]
+new_sqlite_classes = ["JobCoordinator"]

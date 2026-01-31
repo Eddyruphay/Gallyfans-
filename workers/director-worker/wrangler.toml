@@ -20,7 +20,7 @@ bindings = [
 # Vamos designar o 'director-worker' para esta tarefa.
 [[migrations]]
 tag = "v1-do"
-new_classes = ["JobCoordinator"]
+new_sqlite_classes = ["JobCoordinator"]
 
 [vars]
 # O ID do grupo de destino é passado como uma variável de ambiente para o worker.
