@@ -1,6 +1,7 @@
 name = "intelligent-worker"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
 
 # Binding para a base de dados D1, de onde o worker lê métricas e dados estratégicos.
 [[d1_databases]]
@@ -13,3 +14,7 @@ database_id = "<D1_DATABASE_ID>" # A ser preenchido com o ID real
 bindings = [
   { name = "JOB_COORDINATOR", class_name = "JobCoordinator" }
 ]
+
+[[migrations]]
+tag = "v1-do"
+new_classes = ["JobCoordinator"]
