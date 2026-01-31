@@ -1,5 +1,5 @@
 // src/workers/intelligent-worker/index.ts
-export { JobCoordinator } from '../durable-objects/JobCoordinator';
+export { JobCoordinator } from '../../durable-objects/JobCoordinator';
 
 import { CoordinatedJob } from '../../common/types.js';
 
