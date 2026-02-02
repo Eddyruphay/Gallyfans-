@@ -13,8 +13,12 @@ binding = "DB"
 database_name = "gallyfans-db"
 database_id = "<D1_DATABASE_ID>" # A ser preenchido com o ID real
 
-# Segredos que serão injetados no ambiente do worker.
-# Estes valores devem ser configurados no dashboard da Cloudflare ou via 'wrangler secret put'.
 [vars]
-GATEWAY_URL = "http://localhost:3000" # Placeholder
-GATEWAY_AUTH_TOKEN = "change-me" # Placeholder
+# A URL do Gateway será substituída pelo script de deploy.
+GATEWAY_URL = "http://localhost:3000"
+
+# O valor deste segredo será automaticamente vinculado pelo wrangler-action
+# a partir da variável de ambiente com o mesmo nome, que por sua vez
+# vem dos segredos do GitHub.
+[secrets]
+GATEWAY_AUTH_TOKEN

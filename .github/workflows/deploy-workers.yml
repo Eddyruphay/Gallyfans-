@@ -37,7 +37,6 @@ jobs:
           fi
           if [ "${{ matrix.worker }}" = "delivery-worker" ]; then
             sed -i "s|http://localhost:3000|${{ secrets.GATEWAY_URL }}|g" wrangler.toml
-            echo "${{ secrets.GATEWAY_AUTH_TOKEN }}" | npx wrangler secret put GATEWAY_AUTH_TOKEN
           fi
         working-directory: workers/${{ matrix.worker }}
 
