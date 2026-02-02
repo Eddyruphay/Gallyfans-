@@ -1,0 +1,18 @@
+{
+  "name": "ingestion-worker",
+  "version": "1.0.0",
+  "description": "Worker responsible for ingesting WhatsApp events into D1.",
+  "main": "src/index.ts",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "start": "wrangler dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240403.0",
+    "typescript": "^5.4.5",
+    "wrangler": "^3.57.2"
+  }
+}

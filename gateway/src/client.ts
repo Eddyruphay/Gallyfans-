@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
@@ -11,9 +12,14 @@ import { Boom } from '@hapi/boom';
 import express from 'express';
 import multer from 'multer';
 import http from 'http';
+import fetch from 'node-fetch'; // Adicionar node-fetch
 import { config } from './config.js';
 import logger from './logger.js';
 import { Buffer } from 'buffer';
+
+// Variáveis de ambiente para o Ingestion Worker
+const INGESTION_WORKER_URL = process.env.INGESTION_WORKER_URL || '';
+const INGESTION_API_SECRET = process.env.INGESTION_API_SECRET || '';
 
 const SESSION_DIR = 'session';
 let sock: WASocket | undefined;
@@ -127,20 +133,69 @@ async function connectToWhatsApp() {
   // Ouvinte para novas mensagens
   sock.ev.on('messages.upsert', async (m) => {
     const msg = m.messages[0];
-    // Ignorar notificações de status e mensagens sem conteúdo
-    if (!msg.message) return;
 
-    const sender = msg.key.remoteJid;
-    const messageContent = JSON.stringify(msg.message);
-    
-    logger.info({
-      from: sender,
-      type: m.type,
-      message: messageContent
-    }, '[WAPP] 📩 New message received');
+    // Ignorar notificações de status, mensagens sem conteúdo e mensagens que o próprio bot enviou
+    if (!msg.message || msg.key.fromMe) return;
 
-    // Aqui podemos adicionar lógica para responder a comandos, etc.
-    // Exemplo: if (messageContent.includes('!ping')) { sock.sendMessage(sender, { text: 'pong' }) }
+    const senderJID = msg.key.remoteJid;
+    const isGroup = senderJID?.endsWith('@g.us');
+
+    // Supondo que config.targetGroupId seja o ID de um grupo principal a ser monitorado.
+    // Para monitorar múltiplos grupos, TARGET_GROUP_ID precisaria ser uma lista ou regex.
+    // Por simplicidade inicial, vamos considerar apenas o grupo alvo principal.
+    const MONITORED_GROUP_IDS = [config.targetGroupId]; // targetGroupId é uma string singular
+
+    if (isGroup && MONITORED_GROUP_IDS.includes(senderJID || '')) {
+      logger.info({
+        from: senderJID,
+        type: m.type,
+        message: JSON.stringify(msg.message)
+      }, '[WAPP] 📩 New message received in monitored group');
+
+      // Preparar payload para o Ingestion-Worker
+      const payload = {
+        id: msg.key.id,
+        event_id: msg.key.id,
+        group_id: senderJID,
+        sender_id: msg.key.participant || msg.key.remoteJid,
+        event_type: 'message', // Pode ser mais granular depois (ex: 'text', 'image', 'reaction')
+        event_timestamp: new Date(msg.messageTimestamp! * 1000).toISOString(),
+        message_body: msg.message?.conversation || msg.message?.extendedTextMessage?.text || null,
+        quoted_message_id: msg.message?.extendedTextMessage?.contextInfo?.stanzaId || null,
+        raw_payload: JSON.stringify(msg),
+      };
+
+      try {
+        if (!INGESTION_WORKER_URL || !INGESTION_API_SECRET) {
+            logger.warn('[WAPP] INGESTION_WORKER_URL ou INGESTION_API_SECRET não configurados. Evento não será enviado.');
+            return;
+        }
+
+        const response = await fetch(INGESTION_WORKER_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${INGESTION_API_SECRET}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (response.ok) {
+          logger.info(`[WAPP] ✅ Evento ${payload.event_id} enviado para o Ingestion-Worker.`);
+        } else {
+          const errorText = await response.text();
+          logger.error(`[WAPP] ❌ Falha ao enviar evento para o Ingestion-Worker: ${response.status} - ${errorText}`);
+        }
+      } catch (error) {
+        logger.error({ error }, '[WAPP] ❌ Erro na comunicação com o Ingestion-Worker.');
+      }
+    } else if (isGroup) {
+        // Mensagem de grupo, mas não de um grupo monitorado. Opcional logar ou ignorar.
+        // logger.debug({ from: senderJID }, '[WAPP] Mensagem de grupo não monitorado. Ignorando.');
+    } else {
+        // Mensagem individual ou de outro tipo. Opcional logar ou ignorar.
+        // logger.debug({ from: senderJID }, '[WAPP] Mensagem individual. Ignorando.');
+    }
   });
 }
 

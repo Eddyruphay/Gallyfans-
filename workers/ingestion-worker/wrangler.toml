@@ -1,0 +1,11 @@
+name = "ingestion-worker"
+main = "src/index.ts"
+compatibility_date = "2024-05-09"
+
+[[d1_databases]]
+binding = "DB" # This is the D1 binding name in the Worker
+database_name = "gallyfans-db"
+database_id = "<YOUR_D1_DATABASE_ID>" # You need to replace this with your actual D1 Database ID
+
+[vars]
+INGESTION_API_SECRET = "<YOUR_SECRET>" # Replace with a strong secret for authenticating requests
