@@ -6,11 +6,11 @@ on:
       - main
 
 jobs:
-  deploy:
+  deploy-dependent-workers:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        worker: [curator-worker, content-worker, director-worker, delivery-worker, search-worker]
+        worker: [curator-worker, content-worker, search-worker, delivery-worker]
     
     name: Deploy ${{ matrix.worker }}
     steps:
@@ -32,9 +32,6 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           sed -i "s|<D1_DATABASE_ID>|${{ secrets.D1_DATABASE_ID }}|g" wrangler.toml
-          if [ "${{ matrix.worker }}" = "director-worker" ]; then
-            sed -i "s|your-whatsapp-group-id@g.us|${{ secrets.TARGET_GROUP_ID }}|g" wrangler.toml
-          fi
           if [ "${{ matrix.worker }}" = "delivery-worker" ]; then
             sed -i "s|http://localhost:3000|${{ secrets.GATEWAY_URL }}|g" wrangler.toml
           fi
@@ -46,4 +43,38 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: workers/${{ matrix.worker }}
+          command: deploy
+
+  deploy-director-worker:
+    runs-on: ubuntu-latest
+    needs: deploy-dependent-workers # This ensures dependent workers are deployed first
+    name: Deploy director-worker
+    steps:
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Configure director-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          sed -i "s|<D1_DATABASE_ID>|${{ secrets.D1_DATABASE_ID }}|g" wrangler.toml
+          sed -i "s|your-whatsapp-group-id@g.us|${{ secrets.TARGET_GROUP_ID }}|g" wrangler.toml
+        working-directory: workers/director-worker
+
+      - name: Deploy director-worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: workers/director-worker
           command: deploy
