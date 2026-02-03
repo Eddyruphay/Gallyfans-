@@ -1,15 +1,18 @@
 // workers/durable-objects/JobCoordinator.ts
 
-import { CoordinatedJob, JobState } from '../common/types.js';
+import { CoordinatedJob, JobState, PublicationJob } from '../common/types.js';
 
 interface Env {
+  DB: D1Database;
   SEARCH_WORKER: Fetcher;
+  CURATOR_WORKER: Fetcher;
+  CONTENT_WORKER: Fetcher;
 }
 
 export class JobCoordinator {
   state: DurableObjectState;
   env: Env;
-  private job: CoordinatedJob | null = null; // Cache em memória para o job atual
+  private job: CoordinatedJob | null = null;
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
@@ -17,7 +20,6 @@ export class JobCoordinator {
     console.log(`[JobCoordinator DO ${this.state.id}] Inicializado.`);
   }
 
-  // Helper para carregar o job do storage
   private async loadJob(): Promise<void> {
     if (!this.job) {
       this.job = await this.state.storage.get<CoordinatedJob>('job');
@@ -29,7 +31,6 @@ export class JobCoordinator {
     }
   }
 
-  // Helper para salvar o job no storage
   private async saveJob(): Promise<void> {
     if (this.job) {
       this.job.updatedAt = new Date().toISOString();
@@ -40,9 +41,6 @@ export class JobCoordinator {
     }
   }
 
-  /**
-   * Inicializa um novo job, transita para SEARCHING e invoca o SearchWorker.
-   */
   async startJob(initialPayload: any): Promise<string> {
     await this.loadJob();
     if (this.job && this.job.state !== JobState.COMPLETED && this.job.state !== JobState.FAILED) {
@@ -55,47 +53,97 @@ export class JobCoordinator {
       state: JobState.SEARCHING,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      initialPayload: initialPayload, // Salva o payload inicial
       currentPayload: initialPayload,
     };
     await this.saveJob();
     console.log(`[JobCoordinator DO ${this.job.id}] Job iniciado. Estado: ${this.job.state}.`);
-
-    // Invoca o SearchWorker de forma assíncrona
+    
     this.invokeSearchWorker();
-
     return jobId;
   }
 
-  /**
-   * Invoca o SearchWorker para iniciar o processo de busca.
-   */
-  private async invokeSearchWorker(): Promise<void> {
+  private async invokeWorker(worker: Fetcher, workerName: string, payload: any): Promise<void> {
     if (!this.job) return;
     
-    console.log(`[JobCoordinator DO ${this.job.id}] Invocando SearchWorker...`);
+    console.log(`[JobCoordinator DO ${this.job.id}] Invocando ${workerName}...`);
     try {
-      const searchWorkerPayload = {
-        jobId: this.job.id,
-        currentPayload: this.job.currentPayload,
-      };
-
-      // Não precisamos esperar a resposta aqui. O SearchWorker se reportará de volta.
-      // O 'fetch' para outro worker retorna imediatamente. A execução continua em background.
-      this.env.SEARCH_WORKER.fetch('http://search-worker/', {
+      worker.fetch(`http://${workerName.toLowerCase()}/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(searchWorkerPayload),
+        body: JSON.stringify(payload),
       });
-
     } catch (e: any) {
-      console.error(`[JobCoordinator DO ${this.job?.id}] Falha ao invocar SearchWorker: ${e.message}`);
-      await this.failJob(this.job.id, `Falha ao invocar SearchWorker: ${e.message}`);
+      const errorMessage = `Falha ao invocar ${workerName}: ${e.message}`;
+      console.error(`[JobCoordinator DO ${this.job?.id}] ${errorMessage}`);
+      await this.failJob(this.job.id, errorMessage);
     }
   }
 
-  /**
-   * Avança o job para o próximo estado.
-   */
+  private invokeSearchWorker(): Promise<void> {
+    return this.invokeWorker(this.env.SEARCH_WORKER, 'SearchWorker', {
+      jobId: this.job!.id,
+      currentPayload: this.job!.currentPayload,
+    });
+  }
+
+  private invokeCuratorWorker(): Promise<void> {
+    return this.invokeWorker(this.env.CURATOR_WORKER, 'CuratorWorker', {
+      jobId: this.job!.id,
+      currentPayload: this.job!.currentPayload,
+    });
+  }
+
+  private invokeContentWorker(): Promise<void> {
+    return this.invokeWorker(this.env.CONTENT_WORKER, 'ContentWorker', {
+      jobId: this.job!.id,
+      currentPayload: this.job!.currentPayload,
+    });
+  }
+
+  private async saveFinalJobToDB(): Promise<void> {
+    if (!this.job || !this.job.currentPayload.final_item) {
+      throw new Error("Payload final ausente ou inválido para salvar no DB.");
+    }
+    console.log(`[JobCoordinator DO ${this.job.id}] Salvando job final no banco de dados...`);
+
+    const { final_item } = this.job.currentPayload;
+    const { targetGroupId } = this.job.initialPayload;
+
+    if (!targetGroupId) {
+      throw new Error("`targetGroupId` não encontrado no payload inicial do job.");
+    }
+
+    const publicationJob: PublicationJob = {
+      id: crypto.randomUUID(),
+      targetGroupId: targetGroupId,
+      caption: final_item.generated_caption,
+      mediaUrls: [final_item.image_url],
+      source: final_item.source_url,
+      status: 'ready',
+      attempts: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await this.env.DB.prepare(
+      `INSERT INTO publication_jobs (id, targetGroupId, caption, mediaUrls, source, status, attempts, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      publicationJob.id,
+      publicationJob.targetGroupId,
+      publicationJob.caption,
+      JSON.stringify(publicationJob.mediaUrls), // Salva o array como string JSON
+      publicationJob.source,
+      publicationJob.status,
+      publicationJob.attempts,
+      publicationJob.createdAt,
+      publicationJob.updatedAt
+    ).run();
+
+    console.log(`[JobCoordinator DO ${this.job.id}] Job ${publicationJob.id} salvo no D1 com status 'ready'.`);
+  }
+
   async advanceState(jobId: string, resultPayload: any): Promise<void> {
     await this.loadJob();
     if (!this.job || this.job.id !== jobId) {
@@ -103,14 +151,22 @@ export class JobCoordinator {
     }
 
     let nextState: JobState;
+    let subsequentAction: (() => Promise<void>) | null = null;
+
     switch (this.job.state) {
       case JobState.SEARCHING:
         nextState = JobState.CURATING;
+        subsequentAction = () => this.invokeCuratorWorker();
         break;
       case JobState.CURATING:
-        nextState = JobState.PUBLISHING;
+        nextState = JobState.CONTENT_GENERATION;
+        subsequentAction = () => this.invokeContentWorker();
         break;
-      case JobState.PUBLISHING:
+      case JobState.CONTENT_GENERATION:
+        nextState = JobState.SAVING;
+        subsequentAction = () => this.saveFinalJobToDB();
+        break;
+      case JobState.SAVING:
         nextState = JobState.COMPLETED;
         break;
       default:
@@ -123,11 +179,16 @@ export class JobCoordinator {
     this.job.currentPayload = resultPayload;
     await this.saveJob();
     console.log(`[JobCoordinator DO ${jobId}] Estado avançado para: ${nextState}.`);
+
+    if (subsequentAction) {
+      await subsequentAction();
+      // Se a ação foi salvar, avançamos imediatamente para COMPLETED
+      if (this.job.state === JobState.SAVING) {
+        await this.advanceState(jobId, { success: true, message: `Job saved to DB` });
+      }
+    }
   }
 
-  /**
-   * Marca o job como falhado.
-   */
   async failJob(jobId: string, errorMessage: string): Promise<void> {
     await this.loadJob();
     if (!this.job || this.job.id !== jobId) {
@@ -140,18 +201,6 @@ export class JobCoordinator {
     console.error(`[JobCoordinator DO ${jobId}] Job FALHOU. Erro: ${errorMessage}`);
   }
 
-  /**
-   * Recupera o estado atual de um job.
-   */
-  async getJob(jobId: string): Promise<CoordinatedJob | null> {
-    await this.loadJob();
-    if (this.job && this.job.id === jobId) {
-      return this.job;
-    }
-    return null;
-  }
-
-  // --- HTTP Request Handler ---
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;
@@ -198,3 +247,4 @@ export class JobCoordinator {
     }
   }
 }
+

@@ -20,6 +20,18 @@ bindings = [
 binding = "SEARCH_WORKER"
 service = "search-worker"
 
+[[services]]
+binding = "CURATOR_WORKER"
+service = "curator-worker"
+
+[[services]]
+binding = "CONTENT_WORKER"
+service = "content-worker"
+
+[[services]]
+binding = "DELIVERY_WORKER"
+service = "delivery-worker"
+
 # Migração para fazer o upload da classe do Durable Object.
 # O 'script_name' deve ser o de um worker que "exporta" o DO.
 # Vamos designar o 'director-worker' para esta tarefa.

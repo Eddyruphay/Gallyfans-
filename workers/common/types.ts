@@ -49,7 +49,8 @@ export enum JobState {
   IDLE = 'IDLE',
   SEARCHING = 'SEARCHING',
   CURATING = 'CURATING',
-  PUBLISHING = 'PUBLISHING',
+  CONTENT_GENERATION = 'CONTENT_GENERATION',
+  SAVING = 'SAVING',
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
 }
@@ -61,12 +62,14 @@ export enum JobState {
  */
 export interface CoordinatedJob {
   id: string;
-  state: JobState; // Usamos o novo enum JobState aqui
+  state: JobState;
   createdAt: string;
   updatedAt: string;
 
-  // Payload genérico que transita entre os workers
+  // Payload que é passado de worker para worker
   currentPayload: any;
+  // Payload original que deu início ao job
+  initialPayload: any;
 
-  error?: string; // Mensagem de erro em caso de falha
+  error?: string;
 }
