@@ -7,7 +7,8 @@
  */
 
 // Representa o estado de um job no seu ciclo de vida.
-export type JobStatus = 
+// Esta é a JobStatus para a PublicationJob final (D1).
+export type PublicationJobStatus =
   | 'pending'      // Criado pelo Intelligent Worker, aguardando processamento.
   | 'processing'   // Reivindicado pelo Content Worker, a ser enriquecido.
   | 'review'       // Enriquecido, aguardando direção/curadoria.
@@ -27,18 +28,30 @@ export interface PublicationJob {
   // --- Conteúdo ---
   caption: string;
   mediaUrls: string[]; // Array de URLs de imagem/vídeo.
-  
+
   // --- Metadados Estratégicos ---
   affiliateLink?: string; // Link de afiliado (opcional).
   tags?: string[];
   source?: string; // Fonte do conteúdo (e.g., nome do site, ID da galeria).
 
   // --- Rastreamento do Ciclo de Vida ---
-  status: JobStatus;
+  status: PublicationJobStatus;
   attempts: number; // Número de tentativas de processamento/entrega.
   createdAt: string; // ISO 8601 timestamp.
   updatedAt: string; // ISO 8601 timestamp.
   error?: string; // Mensagem de erro em caso de falha.
+}
+
+/**
+ * Enum para os estados do JobCoordinator Durable Object.
+ */
+export enum JobState {
+  IDLE = 'IDLE',
+  SEARCHING = 'SEARCHING',
+  CURATING = 'CURATING',
+  PUBLISHING = 'PUBLISHING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
 }
 
 /**
@@ -48,25 +61,12 @@ export interface PublicationJob {
  */
 export interface CoordinatedJob {
   id: string;
-  status: 'pending' | 'processing' | 'review' | 'directing' | 'complete' | 'failed';
+  state: JobState; // Usamos o novo enum JobState aqui
   createdAt: string;
   updatedAt: string;
-  
-  // Dados iniciais do Intelligent Worker
-  rules?: {
-    niche: string;
-    categories: string[];
-    tags: string[];
-    offerId?: string;
-  };
 
-  // Dados enriquecidos do Content Worker
-  content?: {
-    sourceUrl: string;
-    images: string[]; // URLs das imagens
-    modelBio?: string;
-  };
+  // Payload genérico que transita entre os workers
+  currentPayload: any;
 
-  // Erros que podem ocorrer durante a coordenação
-  error?: string;
+  error?: string; // Mensagem de erro em caso de falha
 }

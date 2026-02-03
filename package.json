@@ -8,9 +8,6 @@
     "doc": "docs"
   },
   "type": "module",
-  "dependencies": {
-    "undici": "^6.19.2"
-  },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/multer": "^2.0.0",
@@ -51,5 +48,9 @@
   "bugs": {
     "url": "https://github.com/Eddyruphay/4Reels/issues"
   },
-  "homepage": "https://github.com/Eddyruphay/4Reels#readme"
+  "homepage": "https://github.com/Eddyruphay/4Reels#readme",
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "long": "^5.3.2"
+  }
 }

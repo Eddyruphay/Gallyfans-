@@ -8,42 +8,12 @@ importers:
 
   .:
     dependencies:
-      '@hapi/boom':
-        specifier: ^10.0.1
-        version: 10.0.1
-      '@whiskeysockets/baileys':
-        specifier: 6.7.21
-        version: 6.7.21(sharp@0.34.5)
-      axios:
-        specifier: ^1.13.2
-        version: 1.13.4
-      cheerio:
-        specifier: ^1.2.0
-        version: 1.2.0
       dotenv:
         specifier: ^16.6.1
         version: 16.6.1
-      express:
-        specifier: ^4.19.2
-        version: 4.22.1
-      form-data:
-        specifier: ^4.0.5
-        version: 4.0.5
-      multer:
-        specifier: ^2.0.2
-        version: 2.0.2
-      pino:
-        specifier: ^10.1.0
-        version: 10.3.0
-      pino-pretty:
-        specifier: ^13.1.2
-        version: 13.1.3
-      proper-lockfile:
-        specifier: ^4.1.2
-        version: 4.1.2
-      ws:
-        specifier: ^8.19.0
-        version: 8.19.0
+      long:
+        specifier: ^5.3.2
+        version: 5.3.2
     devDependencies:
       '@types/express':
         specifier: ^4.17.21
@@ -90,6 +60,56 @@ importers:
       wrangler:
         specifier: ^4.61.0
         version: 4.61.0
+
+  gateway:
+    dependencies:
+      '@hapi/boom':
+        specifier: ^10.0.1
+        version: 10.0.1
+      '@whiskeysockets/baileys':
+        specifier: 7.0.0-rc.9
+        version: 7.0.0-rc.9(sharp@0.34.5)
+      axios:
+        specifier: ^1.13.2
+        version: 1.13.4
+      cheerio:
+        specifier: ^1.2.0
+        version: 1.2.0
+      dotenv:
+        specifier: ^16.6.1
+        version: 16.6.1
+      express:
+        specifier: ^4.19.2
+        version: 4.22.1
+      form-data:
+        specifier: ^4.0.5
+        version: 4.0.5
+      long:
+        specifier: ^5.3.2
+        version: 5.3.2
+      multer:
+        specifier: ^2.0.2
+        version: 2.0.2
+      pino:
+        specifier: ^10.1.0
+        version: 10.3.0
+      pino-pretty:
+        specifier: ^13.1.2
+        version: 13.1.3
+      proper-lockfile:
+        specifier: ^4.1.2
+        version: 4.1.2
+      ws:
+        specifier: ^8.19.0
+        version: 8.19.0
+
+  workers/content-worker: {}
+
+  workers/delivery-worker: {}
+
+  workers/director-worker: {}
+
+  workers/intelligent-worker: {}
 
 packages:
 
@@ -878,8 +898,8 @@ packages:
     resolution: {integrity: sha512-VFlhGSl4opC0bprJiItPQ1RfUhGDIBokcPwaFH4yiBCaNPeld/9VeXbiPO1cLyorQi1G1vL+ecBk1x8o1axORA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@whiskeysockets/baileys@6.7.21':
-    resolution: {integrity: sha512-xx9OHd6jlPiu5yZVuUdwEgFNAOXiEG8sULHxC6XfzNwssnwxnA9Lp44pR05H621GQcKyCfsH33TGy+Na6ygX4w==}
+  '@whiskeysockets/baileys@7.0.0-rc.9':
+    resolution: {integrity: sha512-YFm5gKXfDP9byCXCW3OPHKXLzrAKzolzgVUlRosHHgwbnf2YOO3XknkMm6J7+F0ns8OA0uuSBhgkRHTDtqkacw==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       audio-decode: ^2.1.3
@@ -1252,6 +1272,9 @@ packages:
     resolution: {integrity: sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==}
     engines: {node: '>= 0.6'}
 
+  eventemitter3@5.0.4:
+    resolution: {integrity: sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw==}
+
   express@4.22.1:
     resolution: {integrity: sha512-F2X8g9P1X7uCPZMA3MVf9wcTqlyNp7IhH5qPCI0izhaOIYXaW9L535tGA3qmjRzpH+bZczqq7hVKxTR4NWnu+g==}
     engines: {node: '>= 0.10.0'}
@@ -1483,6 +1506,10 @@ packages:
   long@5.3.2:
     resolution: {integrity: sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==}
 
+  lru-cache@11.2.5:
+    resolution: {integrity: sha512-vFrFJkWtJvJnD5hg+hJvVE8Lh/TcMzKnTgCWmtBipwI5yLX/iX+5UB2tfuyODF5E7k9xEzMdYgGqaSb1c0c5Yw==}
+    engines: {node: 20 || >=22}
+
   make-error@1.3.6:
     resolution: {integrity: sha512-s8UhlNe7vPKomQhC1qFelMokr/Sc3AgNbso3n74mVPA5LTZwkB9NlXf4XPamLxJE8h0gh73rM94xvwRT2CVInw==}
 
@@ -1591,6 +1618,14 @@ packages:
   p-locate@5.0.0:
     resolution: {integrity: sha512-LaNjtRWUBY++zB5nE/NwcaoMylSPk+S+ZHNB1TzdbMJMny6dynpAGt7X/tl/QYq3TIeE6nxHppbo2LGymrG5Pw==}
     engines: {node: '>=10'}
+
+  p-queue@9.1.0:
+    resolution: {integrity: sha512-O/ZPaXuQV29uSLbxWBGGZO1mCQXV2BLIwUr59JUU9SoH76mnYvtms7aafH/isNSNGwuEfP6W/4xD0/TJXxrizw==}
+    engines: {node: '>=20'}
+
+  p-timeout@7.0.1:
+    resolution: {integrity: sha512-AxTM2wDGORHGEkPCt8yqxOTMgpfbEHqF51f/5fJCmwFC3C/zNcGT63SymH2ttOAaiIws2zVg4+izQCjrakcwHg==}
+    engines: {node: '>=20'}
 
   parent-module@1.0.1:
     resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}
@@ -1955,8 +1990,8 @@ packages:
     engines: {node: '>= 8'}
     hasBin: true
 
-  win-guid@0.2.0:
-    resolution: {integrity: sha512-iekGhWzFQSunvE87ndXxoa6UgyQbkL4MmbYTFhQnk94pVsAW89mWnvW1zI3JMnypUm8jykJaITudspoR8NrRBQ==}
+  win-guid@0.2.1:
+    resolution: {integrity: sha512-gEIQU4mkgl2OPeoNrWflcJFJ3Ae2BPd4eCsHHA/XikslkIVms/nHhvnvzIZV7VLmBvtFlDOzLt9rrZT+n6D67A==}
 
   word-wrap@1.2.5:
     resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==}
@@ -2633,21 +2668,21 @@ snapshots:
       '@typescript-eslint/types': 8.54.0
       eslint-visitor-keys: 4.2.1
 
-  '@whiskeysockets/baileys@6.7.21(sharp@0.34.5)':
+  '@whiskeysockets/baileys@7.0.0-rc.9(sharp@0.34.5)':
     dependencies:
       '@cacheable/node-cache': 1.7.6
       '@hapi/boom': 9.1.4
       async-mutex: 0.5.0
-      axios: 1.13.4
       libsignal: '@whiskeysockets/libsignal-node@https://codeload.github.com/whiskeysockets/libsignal-node/tar.gz/1c30d7d7e76a3b0aa120b04dc6a26f5a12dccf67'
+      lru-cache: 11.2.5
       music-metadata: 11.11.1
+      p-queue: 9.1.0
       pino: 9.14.0
       protobufjs: 7.5.4
       sharp: 0.34.5
       ws: 8.19.0
     transitivePeerDependencies:
       - bufferutil
-      - debug
       - supports-color
       - utf-8-validate
 
@@ -3074,6 +3109,8 @@ snapshots:
 
   etag@1.8.1: {}
 
+  eventemitter3@5.0.4: {}
+
   express@4.22.1:
     dependencies:
       accepts: 1.3.8
@@ -3319,6 +3356,8 @@ snapshots:
 
   long@5.3.2: {}
 
+  lru-cache@11.2.5: {}
+
   make-error@1.3.6: {}
 
   math-intrinsics@1.1.0: {}
@@ -3390,7 +3429,7 @@ snapshots:
       strtok3: 10.3.4
       token-types: 6.1.2
       uint8array-extras: 1.5.0
-      win-guid: 0.2.0
+      win-guid: 0.2.1
     transitivePeerDependencies:
       - supports-color
 
@@ -3432,6 +3471,13 @@ snapshots:
   p-locate@5.0.0:
     dependencies:
       p-limit: 3.1.0
+
+  p-queue@9.1.0:
+    dependencies:
+      eventemitter3: 5.0.4
+      p-timeout: 7.0.1
+
+  p-timeout@7.0.1: {}
 
   parent-module@1.0.1:
     dependencies:
@@ -3862,7 +3908,7 @@ snapshots:
     dependencies:
       isexe: 2.0.0
 
-  win-guid@0.2.0: {}
+  win-guid@0.2.1: {}
 
   word-wrap@1.2.5: {}
 

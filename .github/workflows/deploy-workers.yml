@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        worker: [intelligent-worker, content-worker, director-worker, delivery-worker]
+        worker: [intelligent-worker, content-worker, director-worker, delivery-worker, search-worker]
     
     name: Deploy ${{ matrix.worker }}
     steps:

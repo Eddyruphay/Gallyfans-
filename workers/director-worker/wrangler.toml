@@ -15,6 +15,11 @@ bindings = [
   { name = "JOB_COORDINATOR", class_name = "JobCoordinator" }
 ]
 
+# Binding para outros workers (serviços) que este worker precisa chamar.
+[[services]]
+binding = "SEARCH_WORKER"
+service = "search-worker"
+
 # Migração para fazer o upload da classe do Durable Object.
 # O 'script_name' deve ser o de um worker que "exporta" o DO.
 # Vamos designar o 'director-worker' para esta tarefa.
