@@ -8,7 +8,3 @@ compatibility_flags = ["nodejs_compat"]
 bindings = [
   { name = "JOB_COORDINATOR", class_name = "JobCoordinator" }
 ]
-
-[[migrations]]
-tag = "v1-do"
-new_sqlite_classes = ["JobCoordinator"]

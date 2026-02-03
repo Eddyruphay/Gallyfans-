@@ -14,7 +14,3 @@ database_id = "<D1_DATABASE_ID>" # A ser preenchido com o ID real
 bindings = [
   { name = "JOB_COORDINATOR", class_name = "JobCoordinator" }
 ]
-
-[[migrations]]
-tag = "v1-do"
-new_sqlite_classes = ["JobCoordinator"]
