@@ -8,3 +8,13 @@ compatibility_flags = ["nodejs_compat"]
 binding = "DB"
 database_name = "gallyfans-db"
 database_id = "<D1_DATABASE_ID>" # A ser preenchido com o ID real
+
+# Binding para o Durable Object onde os novos jobs são criados.
+[durable_objects]
+bindings = [
+  { name = "JOB_COORDINATOR", class_name = "JobCoordinator" }
+]
+
+[[migrations]]
+tag = "v1-do"
+new_sqlite_classes = ["JobCoordinator"]

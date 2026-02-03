@@ -2,10 +2,12 @@
 
 import { JobState } from '../../common/types.js'; 
 
+// Exportar a classe do Durable Object para que o Wrangler a possa encontrar.
+// É importante que o worker que declara o DO também o exporte.
+export { JobCoordinator } from '../../durable-objects/JobCoordinator.js'; 
+
 // Worker 4: Director Worker
 // Responsável por iniciar um novo ciclo de vida de um job através do JobCoordinator.
-// A classe JobCoordinator é exportada via 'main' no wrangler.toml deste worker,
-// pois este worker é o 'host' do Durable Object.
 
 export interface Env {
   DB: D1Database; 

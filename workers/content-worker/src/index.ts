@@ -1,6 +1,7 @@
 // src/workers/content-worker/index.ts
 
 import { CoordinatedJob, JobState } from '../../common/types.js';
+export { JobCoordinator } from '../../durable-objects/JobCoordinator.js';
 
 // Item selecionado pelo CuratorWorker
 interface SelectedItem {

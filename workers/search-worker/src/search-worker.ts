@@ -8,6 +8,8 @@ interface GalleryData {
   thumbnailUrl: string;
 }
 
+export { JobCoordinator } from '../../durable-objects/JobCoordinator.js';
+
 export interface Env {
   // Binding para o Durable Object que coordena o ciclo de vida dos jobs.
   JOB_COORDINATOR: DurableObjectNamespace;
