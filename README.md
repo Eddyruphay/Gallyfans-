@@ -14,7 +14,8 @@ O sistema opera como um pipeline assíncrono, orquestrado por um Durable Object 
 | :--- | :--- | :--- |
 | 1. Search | → `SearchWorker` | Coleta dados brutos de fontes externas. |
 | 2. Curate | → `CuratorWorker` | Filtra, enriquece e seleciona o melhor conteúdo. |
-| 3. Publish | → `PublisherWorker`| Formata e entrega o conteúdo ao destino final. |
+| 3. Generate | → `ContentWorker`| Gera conteúdo adicional (ex: legendas) para o item. |
+| 4. Save | → `JobCoordinator`| Persiste o job final no banco de dados (D1). |
 
 ---
 
@@ -26,7 +27,7 @@ O sistema opera como um pipeline assíncrono, orquestrado por um Durable Object 
 
 #### 2. `JobCoordinator` (Durable Object)
 - **Função:** Orquestrador de Estado (Stateful).
-- **Responsabilidade:** É o cérebro do sistema. Gerencia o ciclo de vida completo de um job (`SEARCHING` → `CURATING` → `PUBLISHING` → `COMPLETED`/`FAILED`). Invoca cada worker em sequência e armazena o estado atual do job.
+- **Responsabilidade:** É o cérebro do sistema. Gerencia o ciclo de vida completo de um job (`SEARCHING` → `CURATING` → `CONTENT_GENERATION` → `SAVING` → `COMPLETED`/`FAILED`). Invoca cada worker em sequência e, ao final, salva o resultado no banco de dados.
 
 #### 3. `SearchWorker`
 - **Função:** Coletor de Dados (Stateless).
@@ -34,22 +35,23 @@ O sistema opera como um pipeline assíncrono, orquestrado por um Durable Object 
 
 #### 4. `CuratorWorker`
 - **Função:** Editor de Conteúdo (Stateless).
-- **Responsabilidade:** Recebe os `raw_results` do `JobCoordinator`, aplica regras de negócio para selecionar o melhor item, o enriquece (ex: gerando legendas) e devolve o "item curado" (`curated_item`) ao coordenador.
+- **Responsabilidade:** Recebe os `raw_results` do `JobCoordinator`, aplica regras de negócio para selecionar o melhor item, e devolve o "item selecionado" (`selected_item`) ao coordenador.
 
-#### 5. `PublisherWorker`
-- **Função:** Entregador Final (Stateless).
-- **Responsabilidade:** Recebe o `curated_item` do `JobCoordinator`, formata-o para o canal de destino e realiza a publicação.
+#### 5. `ContentWorker`
+- **Função:** Gerador de Conteúdo (Stateless).
+- **Responsabilidade:** Recebe o `selected_item` do `JobCoordinator`, o enriquece (ex: gerando legendas com IA) e devolve o "item final" (`final_item`) ao coordenador.
 
 ---
 
 ## Estado Atual do Projeto
 
-- ✅ **`JobCoordinator`**: Implementado como uma máquina de estados funcional.
+- ✅ **`JobCoordinator`**: Implementado como uma máquina de estados funcional, incluindo a lógica para invocar todos os workers e salvar no DB.
 - ✅ **`director-worker`**: Implementado e integrado para iniciar jobs no `JobCoordinator`.
-- ✅ **`SearchWorker`**: Implementado com lógica de web scraping via `HTMLRewriter` e integrado ao `JobCoordinator`.
-- 🚧 **`CuratorWorker` / `PublisherWorker`**: Aguardando implementação.
+- ✅ **`SearchWorker`**: Implementado com lógica de web scraping via `HTMLRewriter`.
+- ✅ **`CuratorWorker`**: Implementado com lógica de seleção simplificada.
+- 🚧 **`ContentWorker`**: Aguardando implementação.
 
-O fluxo autônomo atual vai do `director-worker` até a conclusão do `SearchWorker`, com o `JobCoordinator` transicionando o estado do job para `CURATING`.
+O fluxo autônomo atual vai do `director-worker` até a conclusão do `CuratorWorker`, com o `JobCoordinator` transicionando o estado do job para `CONTENT_GENERATION`.
 
 ## Deploy
 

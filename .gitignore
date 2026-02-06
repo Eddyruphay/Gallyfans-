@@ -35,3 +35,4 @@ Thumbs.db
 
 # Session data
 session/
+\n# Local development scripts and skills\nscripts/test-scraper.mts\nskills/

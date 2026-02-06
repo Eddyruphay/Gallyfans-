@@ -53,36 +53,41 @@ export default {
       }
 
       // 4. Usar HTMLRewriter para processar a resposta e extrair dados
-      let galleries: GalleryData[] = [];
+      const galleries: GalleryData[] = [];
+      let currentLink: string | null = null;
+
       const rewriter = new HTMLRewriter()
         .on('li.thumbwook a.rel-link', {
           element(element) {
-            const link = element.getAttribute('href');
-            // Element handlers não podem acessar o conteúdo interno de forma síncrona,
-            // então aninhamos outro handler para a imagem.
-            element.onEndTag(() => {
-                // This logic will run after the inner elements are processed.
-                // However, we can't get the img attributes here.
-                // A better approach is to handle the img directly.
-            });
-          }
+            // Captura o link quando o elemento âncora começa
+            currentLink = element.getAttribute('href');
+          },
         })
         .on('li.thumbwook a.rel-link img', {
-            element(img) {
-                const link = img.closest('a.rel-link')?.getAttribute('href');
-                const title = img.getAttribute('alt');
-                const thumbnailUrl = img.getAttribute('src');
-                const originalId = link?.split('/')[4];
-
-                if (link && title && thumbnailUrl && originalId) {
-                  galleries.push({
-                    channel: channel,
-                    originalId: originalId,
-                    title: title,
-                    url: link,
-                    thumbnailUrl: thumbnailUrl,
-                  });
-                }
+          element(img) {
+            // Este handler é para a imagem DENTRO do link.
+            // Agora temos acesso ao 'currentLink' do escopo externo.
+            const title = img.getAttribute('alt');
+            const thumbnailUrl = img.getAttribute('src');
+            
+            if (currentLink && title && thumbnailUrl) {
+              const originalId = currentLink.split('/')[4];
+              if (originalId) {
+                galleries.push({
+                  channel: channel,
+                  originalId: originalId,
+                  title: title,
+                  url: currentLink,
+                  thumbnailUrl: thumbnailUrl,
+                });
+              }
+            }
+          },
+        })
+        .on('li.thumbwook', {
+            element(el) {
+                // Reseta o estado a cada novo item de lista para evitar contaminação
+                currentLink = null;
             }
         });
 

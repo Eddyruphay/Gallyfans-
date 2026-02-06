@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        worker: [curator-worker, content-worker, search-worker, delivery-worker]
+        worker: [curator-worker, content-worker, search-worker, delivery-worker, ingestion-worker]
     
     name: Deploy ${{ matrix.worker }}
     steps:
@@ -31,9 +31,19 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          sed -i "s|<D1_DATABASE_ID>|${{ secrets.D1_DATABASE_ID }}|g" wrangler.toml
+          # Replace D1_DATABASE_ID in all relevant workers
+          if [ "${{ matrix.worker }}" != "content-worker" ]; then
+            sed -i "s|<D1_DATABASE_ID>|${{ secrets.D1_DATABASE_ID }}|g" wrangler.toml
+          fi
+          
+          # Replace GATEWAY_URL for delivery-worker
           if [ "${{ matrix.worker }}" = "delivery-worker" ]; then
             sed -i "s|http://localhost:3000|${{ secrets.GATEWAY_URL }}|g" wrangler.toml
+          fi
+
+          # Replace INGESTION_API_SECRET for ingestion-worker
+          if [ "${{ matrix.worker }}" = "ingestion-worker" ]; then
+            sed -i "s|<YOUR_SECRET>|${{ secrets.INGESTION_API_SECRET }}|g" wrangler.toml
           fi
         working-directory: workers/${{ matrix.worker }}
 
