@@ -8,5 +8,5 @@ database_name = "gallyfans-db"
 database_id = "<D1_DATABASE_ID>"
 
 [vars]
-INGESTION_API_SECRET = "<YOUR_SECRET>"
+INGESTION_API_SECRET = "${INGESTION_API_SECRET}"
 SENTRY_DSN = "your-sentry-dsn-goes-here"

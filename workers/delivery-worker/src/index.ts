@@ -183,3 +183,4 @@ async function processJob(job: PublicationJob, env: Env, ctx: ExecutionContext):
       error.message
     );
   }
+}

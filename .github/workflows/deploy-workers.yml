@@ -26,29 +26,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Configure ${{ matrix.worker }}
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Set Environment Variables
         run: |
-          # Replace D1_DATABASE_ID in all relevant workers
+          echo "GATEWAY_URL=${{ secrets.GATEWAY_URL }}" >> $GITHUB_ENV
+          echo "INGESTION_API_SECRET=${{ secrets.INGESTION_API_SECRET }}" >> $GITHUB_ENV
+          echo "ALERT_WEBHOOK_URL=${{ secrets.ALERT_WEBHOOK_URL }}" >> $GITHUB_ENV
+
+      - name: Configure Worker
+        run: |
           if [ "${{ matrix.worker }}" != "content-worker" ]; then
             sed -i "s|<D1_DATABASE_ID>|${{ secrets.D1_DATABASE_ID }}|g" wrangler.toml
-          fi
-          
-          # Replace GATEWAY_URL for delivery-worker
-          if [ "${{ matrix.worker }}" = "delivery-worker" ]; then
-            sed -i "s|http://localhost:3000|${{ secrets.GATEWAY_URL }}|g" wrangler.toml
-          fi
-
-          # Replace INGESTION_API_SECRET for ingestion-worker
-          if [ "${{ matrix.worker }}" = "ingestion-worker" ]; then
-            sed -i "s|<YOUR_SECRET>|${{ secrets.INGESTION_API_SECRET }}|g" wrangler.toml
-          fi
-
-          # Replace ALERT_WEBHOOK_URL for status-worker
-          if [ "${{ matrix.worker }}" = "status-worker" ]; then
-            sed -i "s|<ALERT_WEBHOOK_URL>|${{ secrets.ALERT_WEBHOOK_URL }}|g" wrangler.toml
           fi
         working-directory: workers/${{ matrix.worker }}
 
@@ -78,13 +65,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Configure director-worker
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Set Environment Variables
         run: |
-          sed -i "s|<D1_DATABASE_ID>|${{ secrets.D1_DATABASE_ID }}|g" wrangler.toml
-          sed -i "s|your-whatsapp-group-id@g.us|${{ secrets.TARGET_GROUP_ID }}|g" wrangler.toml
+          echo "TARGET_GROUP_ID=${{ secrets.TARGET_GROUP_ID }}" >> $GITHUB_ENV
+      
+      - name: Configure Worker
+        run: sed -i "s|<D1_DATABASE_ID>|${{ secrets.D1_DATABASE_ID }}|g" wrangler.toml
         working-directory: workers/director-worker
 
       - name: Deploy director-worker

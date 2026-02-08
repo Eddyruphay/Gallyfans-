@@ -14,7 +14,11 @@ database_id = "<D1_DATABASE_ID>"
 name = "JOB_COORDINATOR"
 class_name = "JobCoordinator"
 
+[[migrations]]
+tag = "v1-do"
+new_sqlite_classes = ["JobCoordinator"]
+
 [vars]
 # Placeholder para o segredo do webhook de alertas
 # Este valor será substituído pelo GitHub Actions durante o deploy
-ALERT_WEBHOOK_URL = "<ALERT_WEBHOOK_URL>"
+ALERT_WEBHOOK_URL = "${ALERT_WEBHOOK_URL}"

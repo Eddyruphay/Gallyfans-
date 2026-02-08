@@ -45,5 +45,5 @@ new_sqlite_classes = ["JobCoordinator"]
 
 [vars]
 # O ID do grupo de destino é passado como uma variável de ambiente para o worker.
-TARGET_GROUP_ID = "your-whatsapp-group-id@g.us"
+TARGET_GROUP_ID = "${TARGET_GROUP_ID}"
 SENTRY_DSN = "your-sentry-dsn-goes-here"
