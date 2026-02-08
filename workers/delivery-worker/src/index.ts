@@ -1,4 +1,4 @@
-import Toucan from 'toucan-js';
+import { Toucan } from 'toucan-js';
 import { PublicationJob, JobStatus } from '../../common/types.js';
 
 // Define a estrutura do ambiente de execução do Worker
