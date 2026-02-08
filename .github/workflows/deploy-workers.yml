@@ -6,11 +6,48 @@ on:
       - main
 
 jobs:
-  deploy-dependent-workers:
+  deploy-status-worker:
     runs-on: ubuntu-latest
+    name: Deploy status-worker
+    steps:
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Set Environment Variables
+        run: |
+          echo "GATEWAY_URL=${{ secrets.GATEWAY_URL }}" >> $GITHUB_ENV
+          echo "INGESTION_API_SECRET=${{ secrets.INGESTION_API_SECRET }}" >> $GITHUB_ENV
+          echo "ALERT_WEBHOOK_URL=${{ secrets.ALERT_WEBHOOK_URL }}" >> $GITHUB_ENV
+
+      - name: Configure Worker
+        run: |
+          sed -i "s|<D1_DATABASE_ID>|${{ secrets.D1_DATABASE_ID }}|g" wrangler.toml
+        working-directory: workers/status-worker
+
+      - name: Deploy status-worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: workers/status-worker
+          command: deploy
+          wranglerVersion: '4'
+
+  deploy-other-dependent-workers:
+    runs-on: ubuntu-latest
+    needs: deploy-status-worker
     strategy:
       matrix:
-        worker: [curator-worker, content-worker, search-worker, delivery-worker, ingestion-worker, status-worker]
+        worker: [curator-worker, content-worker, search-worker, delivery-worker, ingestion-worker]
     
     name: Deploy ${{ matrix.worker }}
     steps:
@@ -50,7 +87,7 @@ jobs:
 
   deploy-director-worker:
     runs-on: ubuntu-latest
-    needs: deploy-dependent-workers # This ensures dependent workers are deployed first
+    needs: deploy-other-dependent-workers
     name: Deploy director-worker
     steps:
       - uses: actions/checkout@v3
