@@ -1,4 +1,4 @@
-import Toucan from 'toucan-js';
+import { Toucan } from 'toucan-js';
 import { CoordinatedJob, JobState } from '../../common/types.js';
 export { JobCoordinator } from '../../durable-objects/JobCoordinator.js';
 

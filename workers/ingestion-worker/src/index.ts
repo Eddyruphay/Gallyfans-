@@ -1,5 +1,5 @@
 import { D1Database } from '@cloudflare/workers-types';
-import Toucan from 'toucan-js';
+import { Toucan } from 'toucan-js';
 
 interface Env {
   DB: D1Database;
