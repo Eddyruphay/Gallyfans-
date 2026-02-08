@@ -22,7 +22,8 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.48.0"
+    "typescript-eslint": "^8.48.0",
+    "toucan-js": "^4.1.1"
   },
   "scripts": {
     "build": "echo 'Build script needs to be updated for new architecture'",
