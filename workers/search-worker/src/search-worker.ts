@@ -1,3 +1,5 @@
+import Toucan from 'toucan-js';
+
 // src/workers/search-worker/search-worker.ts
 
 interface GalleryData {
@@ -13,15 +15,43 @@ export { JobCoordinator } from '../../durable-objects/JobCoordinator.js';
 export interface Env {
   // Binding para o Durable Object que coordena o ciclo de vida dos jobs.
   JOB_COORDINATOR: DurableObjectNamespace;
+  SENTRY_DSN: string;
+  STATUS_WORKER: Fetcher;
 }
 
 // O SearchWorker é responsável por coletar dados brutos de uma fonte externa.
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const toucan = new Toucan({
+      dsn: env.SENTRY_DSN,
+      context: ctx,
+      request: request,
+    });
     console.log("[SearchWorker] - Iniciado");
 
     let jobId: string | undefined;
     let jobCoordinatorStub: DurableObjectStub | undefined;
+
+    const reportStatus = async (eventType: string, details: object) => {
+      if (env.STATUS_WORKER && jobId) {
+        try {
+          const payload = {
+            workerName: "search-worker",
+            jobId: jobId,
+            eventType,
+            details,
+          };
+          // Não bloqueie o retorno da resposta por causa do log
+          ctx.waitUntil(env.STATUS_WORKER.fetch("http://status-worker/log", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }));
+        } catch (e) {
+            console.error("Falha ao reportar status para o status-worker:", e);
+        }
+      }
+    };
 
     try {
       // 1. Extrair jobId e channel do payload da requisição.
@@ -30,10 +60,17 @@ export default {
       jobId = receivedJobId;
       const channel = currentPayload?.channel;
 
+      toucan.setTag('job_id', jobId);
+      toucan.setContext('payload', { channel });
+
       if (!jobId || !channel) {
         throw new Error("JobId e 'channel' no payload são obrigatórios.");
       }
       console.log(`[SearchWorker] Processando Job ID: ${jobId} para o canal: ${channel}`);
+      toucan.addBreadcrumb({ message: `Iniciando busca para o canal: ${channel}`, category: 'scraping' });
+
+      // Reportar o início
+      await reportStatus("SEARCH_STARTED", { channel });
 
       // 2. Obter o stub do JobCoordinator para comunicação de retorno.
       const doId = env.JOB_COORDINATOR.idFromName("singleton_job_coordinator");
@@ -51,6 +88,8 @@ export default {
       if (!response.ok) {
         throw new Error(`Falha ao buscar a URL: ${response.status} ${response.statusText}`);
       }
+      toucan.addBreadcrumb({ message: `Busca na URL ${url} bem-sucedida.`, category: 'scraping' });
+
 
       // 4. Usar HTMLRewriter para processar a resposta e extrair dados
       const galleries: GalleryData[] = [];
@@ -93,10 +132,15 @@ export default {
 
       await rewriter.transform(response).text(); // Consome o stream e executa o rewriter
       console.log(`[SearchWorker] Encontradas ${galleries.length} galerias.`);
+      toucan.addBreadcrumb({ message: `Encontradas ${galleries.length} galerias.`, category: 'scraping' });
+
 
       if (galleries.length === 0) {
         throw new Error("Nenhuma galeria encontrada. A estrutura do site pode ter mudado.");
       }
+
+      // Reportar sucesso
+      await reportStatus("SEARCH_COMPLETED", { found: galleries.length });
 
       // 5. Chamar o JobCoordinator para avançar o estado do job.
       const resultPayload = { raw_results: galleries };
@@ -111,15 +155,18 @@ export default {
 
     } catch (error: any) {
       console.error(`[SearchWorker] ❌ Erro: ${error.message}`);
+      toucan.captureException(error);
+      
+      // Reportar a falha
+      await reportStatus("SEARCH_FAILED", { error: error.message });
+
       // Se a chamada falhar, notificar o JobCoordinator sobre a falha.
       if (jobId && jobCoordinatorStub) {
-        await jobCoordinatorStub.fetch(`http://do/job/${jobId}/fail`, {
+        ctx.waitUntil(jobCoordinatorStub.fetch(`http://do/job/${jobId}/fail`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ error: error.message }),
-        });
+        }));
       }
       return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500 });
     }
-  },
-};

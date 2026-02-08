@@ -1,5 +1,4 @@
-// src/workers/delivery-worker/index.ts
-
+import Toucan from 'toucan-js';
 import { PublicationJob, JobStatus } from '../../common/types.js';
 
 // Define a estrutura do ambiente de execução do Worker
@@ -7,6 +6,29 @@ export interface Env {
   DB: D1Database;
   GATEWAY_URL: string;       // Ex: http://<ip-do-termux>:3000
   GATEWAY_AUTH_TOKEN: string;
+  SENTRY_DSN: string;
+  STATUS_WORKER: Fetcher;
+}
+
+// Helper para reportar status, adaptado para ser chamado de qualquer função
+async function reportStatus(env: Env, ctx: ExecutionContext, jobId: string, eventType: string, details: object) {
+  if (env.STATUS_WORKER) {
+    try {
+      const payload = {
+        workerName: "delivery-worker",
+        jobId: jobId,
+        eventType,
+        details,
+      };
+      ctx.waitUntil(env.STATUS_WORKER.fetch("http://status-worker/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }));
+    } catch (e) {
+      console.error("Falha ao reportar status para o status-worker:", e);
+    }
+  }
 }
 
 export default {
@@ -16,6 +38,11 @@ export default {
     env: Env,
     ctx: ExecutionContext
   ): Promise<void> {
+    const toucan = new Toucan({
+      dsn: env.SENTRY_DSN,
+      context: ctx,
+      request: new Request('https://delivery-worker.scheduled'), // Request simulado para o contexto
+    });
     console.log("Worker: Delivery - Iniciado por Cron Trigger");
 
     try {
@@ -30,20 +57,36 @@ export default {
       }
 
       console.log(`Encontrados ${results.length} jobs para entregar.`);
+      toucan.addBreadcrumb({
+        message: `Encontrados ${results.length} jobs para processar.`,
+        category: 'job_fetching',
+      });
 
       for (const job of results) {
-        ctx.waitUntil(processJob(job, env));
+        ctx.waitUntil(processJob(job, env, ctx));
       }
 
     } catch (error: any) {
       console.error("❌ Erro fatal no Delivery Worker (scheduled):", error);
+      toucan.captureException(error);
     }
   },
 };
 
 // Processa um único job
-async function processJob(job: PublicationJob, env: Env): Promise<void> {
+async function processJob(job: PublicationJob, env: Env, ctx: ExecutionContext): Promise<void> {
+  const toucan = new Toucan({
+    dsn: env.SENTRY_DSN,
+    context: ctx,
+  });
+  toucan.setTag('job_id', job.id);
+  toucan.setContext('job_details', {
+    target_group_id: job.targetGroupId,
+    media_count: job.mediaUrls.length,
+  });
+
   console.log(`Processando job ${job.id}...`);
+  await reportStatus(env, ctx, job.id, "DELIVERY_STARTED", { target: job.targetGroupId, mediaCount: job.mediaUrls.length });
 
   try {
     // Marcar como delivering
@@ -53,6 +96,7 @@ async function processJob(job: PublicationJob, env: Env): Promise<void> {
       'delivering',
       (job.attempts || 0) + 1
     );
+    toucan.addBreadcrumb({ message: 'Job marcado como delivering.', category: 'job_status' });
 
     // 2. Baixar imagens
     const imageUrls: string[] = job.mediaUrls;
@@ -84,6 +128,7 @@ async function processJob(job: PublicationJob, env: Env): Promise<void> {
     }
 
     console.log(`Download de ${imageFiles.length} imagens concluído.`);
+    toucan.addBreadcrumb({ message: 'Download de imagens concluído.', category: 'media_processing' });
 
     // 3. Montar FormData
     const formData = new FormData();
@@ -96,6 +141,7 @@ async function processJob(job: PublicationJob, env: Env): Promise<void> {
 
     // 4. Enviar ao gateway (fetch NATIVO)
     console.log(`Enviando job ${job.id} para ${env.GATEWAY_URL}...`);
+    toucan.addBreadcrumb({ message: 'Enviando para o gateway.', category: 'gateway_communication' });
 
     const gatewayResponse = await fetch(
       `${env.GATEWAY_URL}/publish`,
@@ -117,12 +163,18 @@ async function processJob(job: PublicationJob, env: Env): Promise<void> {
 
     const responseJson = await gatewayResponse.json();
     console.log(`✅ Job ${job.id} publicado com sucesso:`, responseJson);
+    await reportStatus(env, ctx, job.id, "DELIVERY_COMPLETED", { gatewayResponse: responseJson });
+
 
     // 5. Marcar como published
     await updateJobStatus(env.DB, job.id, 'published');
+    toucan.addBreadcrumb({ message: 'Job marcado como published.', category: 'job_status' });
 
   } catch (error: any) {
     console.error(`❌ Falha no job ${job.id}:`, error.message);
+    toucan.captureException(error);
+    await reportStatus(env, ctx, job.id, "DELIVERY_FAILED", { error: error.message });
+
     await updateJobStatus(
       env.DB,
       job.id,
@@ -131,35 +183,3 @@ async function processJob(job: PublicationJob, env: Env): Promise<void> {
       error.message
     );
   }
-}
-
-// Atualiza status no D1
-async function updateJobStatus(
-  db: D1Database,
-  id: string,
-  status: JobStatus,
-  attempts?: number,
-  error?: string
-) {
-  let query = "UPDATE publication_jobs SET status = ?, updated_at = ?";
-  const params: (string | number | null)[] = [
-    status,
-    new Date().toISOString(),
-  ];
-
-  if (attempts !== undefined) {
-    query += ", attempts = ?";
-    params.push(attempts);
-  }
-
-  if (error !== undefined) {
-    query += ", error = ?";
-    params.push(error);
-  }
-
-  query += " WHERE id = ?";
-  params.push(id);
-
-  await db.prepare(query).bind(...params).run();
-  console.log(`Status do job ${id} atualizado para '${status}'.`);
-}

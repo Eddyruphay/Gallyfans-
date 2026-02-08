@@ -1,5 +1,4 @@
-// src/workers/curator-worker/index.ts
-
+import Toucan from 'toucan-js';
 import { CoordinatedJob, JobState } from '../../common/types.js';
 export { JobCoordinator } from '../../durable-objects/JobCoordinator.js';
 
@@ -20,15 +19,43 @@ export interface SelectedItem {
 
 export interface Env {
   JOB_COORDINATOR: DurableObjectNamespace;
+  SENTRY_DSN: string;
+  STATUS_WORKER: Fetcher;
 }
 
 // O CuratorWorker é responsável por filtrar e selecionar o melhor item dos dados brutos do SearchWorker.
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const toucan = new Toucan({
+      dsn: env.SENTRY_DSN,
+      context: ctx,
+      request: request,
+    });
+
     console.log("[CuratorWorker] - Iniciado");
 
     let jobId: string | undefined;
     let jobCoordinatorStub: DurableObjectStub | undefined;
+
+    const reportStatus = async (eventType: string, details: object) => {
+      if (env.STATUS_WORKER && jobId) {
+        try {
+          const payload = {
+            workerName: "curator-worker",
+            jobId: jobId,
+            eventType,
+            details,
+          };
+          ctx.waitUntil(env.STATUS_WORKER.fetch("http://status-worker/log", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }));
+        } catch (e) {
+          console.error("Falha ao reportar status para o status-worker:", e);
+        }
+      }
+    };
 
     try {
       // 1. Extrair jobId e raw_results do payload da requisição.
@@ -36,10 +63,22 @@ export default {
       jobId = receivedJobId;
       const rawResults: GalleryData[] = currentPayload?.raw_results;
 
-      if (!jobId || !rawResults || rawResults.length === 0) {
+      toucan.setContext('jobId', jobId);
+      toucan.addBreadcrumb({
+        message: 'Payload recebido',
+        category: 'job_processing',
+        data: {
+          hasJobId: !!jobId,
+          rawResultsCount: rawResults?.length ?? 0,
+        },
+      });
+
+      if (!jobId || !rawResults || !rawResults.length === 0) {
         throw new Error("JobId e 'raw_results' válidos são obrigatórios no payload.");
       }
       console.log(`[CuratorWorker] Processando Job ID: ${jobId}. Recebidos ${rawResults.length} resultados brutos.`);
+      
+      await reportStatus("CURATION_STARTED", { rawResultsCount: rawResults.length });
 
       // 2. Obter o stub do JobCoordinator para comunicação de retorno.
       const doId = env.JOB_COORDINATOR.idFromName("singleton_job_coordinator");
@@ -56,6 +95,13 @@ export default {
         channel: selectedGallery.channel,
       };
 
+      await reportStatus("CURATION_COMPLETED", { selectedTitle: selectedItem.title });
+
+      toucan.addBreadcrumb({
+        message: `Galeria '${selectedGallery.title}' selecionada. Avançando para o próximo estado.`,
+        category: 'job_processing',
+      });
+
       // 4. Chamar o JobCoordinator para avançar o estado do job.
       const resultPayload = { selected_item: selectedItem };
       await jobCoordinatorStub.fetch(`http://do/job/${jobId}/advance`, {
@@ -69,15 +115,17 @@ export default {
 
     } catch (error: any) {
       console.error(`[CuratorWorker] ❌ Erro: ${error.message}`);
+      toucan.captureException(error);
+      
+      await reportStatus("CURATION_FAILED", { error: error.message });
+
       // Se a chamada falhar, notificar o JobCoordinator sobre a falha.
       if (jobId && jobCoordinatorStub) {
-        await jobCoordinatorStub.fetch(`http://do/job/${jobId}/fail`, {
+        ctx.waitUntil(jobCoordinatorStub.fetch(`http://do/job/${jobId}/fail`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ error: error.message }),
-        });
+        }));
       }
       return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500 });
     }
-  },
-};

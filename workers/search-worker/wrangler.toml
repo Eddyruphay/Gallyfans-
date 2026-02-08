@@ -15,6 +15,13 @@ bindings = [
   { name = "JOB_COORDINATOR", class_name = "JobCoordinator" }
 ]
 
+[[services]]
+binding = "STATUS_WORKER"
+service = "status-worker"
+
 [[migrations]]
 tag = "v1-do"
 new_sqlite_classes = ["JobCoordinator"]
+
+[vars]
+SENTRY_DSN = "your-sentry-dsn-goes-here"

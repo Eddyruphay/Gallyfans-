@@ -18,3 +18,8 @@ database_id = "<D1_DATABASE_ID>" # A ser preenchido com o ID real
 [vars]
 GATEWAY_URL = "http://localhost:3000" # Placeholder
 GATEWAY_AUTH_TOKEN = "change-me" # Placeholder
+SENTRY_DSN = "your-sentry-dsn-goes-here"
+
+[[services]]
+binding = "STATUS_WORKER"
+service = "status-worker"

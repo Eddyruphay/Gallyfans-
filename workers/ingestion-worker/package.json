@@ -9,5 +9,8 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240403.0",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "toucan-js": "^4.1.1"
   }
 }

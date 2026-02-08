@@ -9,3 +9,4 @@ database_id = "<D1_DATABASE_ID>"
 
 [vars]
 INGESTION_API_SECRET = "<YOUR_SECRET>"
+SENTRY_DSN = "your-sentry-dsn-goes-here"

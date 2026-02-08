@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        worker: [curator-worker, content-worker, search-worker, delivery-worker, ingestion-worker]
+        worker: [curator-worker, content-worker, search-worker, delivery-worker, ingestion-worker, status-worker]
     
     name: Deploy ${{ matrix.worker }}
     steps:
@@ -44,6 +44,11 @@ jobs:
           # Replace INGESTION_API_SECRET for ingestion-worker
           if [ "${{ matrix.worker }}" = "ingestion-worker" ]; then
             sed -i "s|<YOUR_SECRET>|${{ secrets.INGESTION_API_SECRET }}|g" wrangler.toml
+          fi
+
+          # Replace ALERT_WEBHOOK_URL for status-worker
+          if [ "${{ matrix.worker }}" = "status-worker" ]; then
+            sed -i "s|<ALERT_WEBHOOK_URL>|${{ secrets.ALERT_WEBHOOK_URL }}|g" wrangler.toml
           fi
         working-directory: workers/${{ matrix.worker }}
 

@@ -12,7 +12,6 @@ function requireEnv(key: string): string {
 
 export const config = {
   // Variáveis de ambiente principais
-  databaseUrl: requireEnv('DATABASE_URL'),
   targetGroupId: requireEnv('TARGET_GROUP_ID'),
   
   // Configurações do Baileys e do WhatsApp

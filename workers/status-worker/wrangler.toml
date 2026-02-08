@@ -1,0 +1,20 @@
+name = "status-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Binding para o banco de dados D1
+[[d1_databases]]
+binding = "DB"
+database_name = "gallyfans-d1" # Assumindo o nome do DB, ajuste se necessário
+database_id = "<D1_DATABASE_ID>"
+
+# Binding para o Durable Object que coordena os jobs
+[[durable_objects.bindings]]
+name = "JOB_COORDINATOR"
+class_name = "JobCoordinator"
+
+[vars]
+# Placeholder para o segredo do webhook de alertas
+# Este valor será substituído pelo GitHub Actions durante o deploy
+ALERT_WEBHOOK_URL = "<ALERT_WEBHOOK_URL>"

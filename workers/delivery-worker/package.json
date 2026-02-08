@@ -2,5 +2,8 @@
   "name": "delivery-worker",
   "version": "1.0.0",
   "private": true,
-  "main": "src/index.ts"
+  "main": "src/index.ts",
+  "dependencies": {
+    "toucan-js": "^4.1.1"
+  }
 }
