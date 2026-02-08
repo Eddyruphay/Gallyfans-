@@ -1,6 +1,6 @@
 // workers/durable-objects/JobCoordinator.ts
 
-import Toucan from 'toucan-js';
+import { Toucan } from 'toucan-js';
 import { CoordinatedJob, JobState, PublicationJob } from '../common/types.js';
 
 interface Env {
