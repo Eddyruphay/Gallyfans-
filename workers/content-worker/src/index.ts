@@ -105,7 +105,7 @@ export default {
       const resultPayload = { final_item: finalItem };
       await jobCoordinatorStub.fetch(`http://do/job/${jobId}/advance`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(resultPayload),
       });
 
@@ -120,8 +120,8 @@ export default {
 
       if (jobId && jobCoordinatorStub) {
         ctx.waitUntil(jobCoordinatorStub.fetch(`http://do/job/${jobId}/fail`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ error: error.message }),
         }));
       }

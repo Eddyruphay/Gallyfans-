@@ -73,7 +73,7 @@ export default {
       console.log("[DirectorWorker] Chamando JobCoordinator para iniciar um novo job...");
       const startJobResponse = await stub.fetch("http://do/job/start", {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(initialPayload),
       });
 
@@ -101,7 +101,7 @@ export default {
           jobId: jobId,
           coordinatorState: state,
         }),
-        { headers: { 'Content-Type': 'application/json' } }
+        { headers: { "Content-Type": "application/json" } }
       );
 
     } catch (error: any) {

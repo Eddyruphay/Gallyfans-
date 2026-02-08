@@ -106,7 +106,7 @@ export default {
       const resultPayload = { selected_item: selectedItem };
       await jobCoordinatorStub.fetch(`http://do/job/${jobId}/advance`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(resultPayload),
       });
 
@@ -122,8 +122,8 @@ export default {
       // Se a chamada falhar, notificar o JobCoordinator sobre a falha.
       if (jobId && jobCoordinatorStub) {
         ctx.waitUntil(jobCoordinatorStub.fetch(`http://do/job/${jobId}/fail`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ error: error.message }),
         }));
       }
