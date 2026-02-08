@@ -12,7 +12,7 @@ database_id = "<D1_DATABASE_ID>" # A ser preenchido com o ID real
 # Binding para o Durable Object que coordena o ciclo de vida dos jobs.
 [durable_objects]
 bindings = [
-  { name = "JOB_COORDINATOR", class_name = "JobCoordinator", script_name = "director-worker", environment = { SENTRY_DSN = "your-sentry-dsn-goes-here" } }
+  { name = "JOB_COORDINATOR", class_name = "JobCoordinator", script_name = "director-worker" }
 ]
 
 # Binding para outros workers (serviços) que este worker precisa chamar.
